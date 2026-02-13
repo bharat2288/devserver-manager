@@ -435,7 +435,9 @@
         }
 
         .log-content {
-            height: 200px;
+            min-height: 200px;
+            max-height: 80vh;
+            resize: vertical;
             overflow-y: auto;
             padding: 16px 20px;
             font-family: var(--font-mono);
@@ -443,6 +445,8 @@
             line-height: 1.7;
             color: var(--text-secondary);
             background: var(--bg-base);
+            user-select: text;
+            cursor: text;
         }
 
         .log-content:empty::before {
@@ -812,10 +816,22 @@
                 container.innerHTML = '';
                 return;
             }
-            container.innerHTML = logs.map(line =>
+
+            // Don't re-render while user is selecting text — it kills the selection
+            const selection = window.getSelection();
+            if (selection && selection.toString().length > 0 && container.contains(selection.anchorNode)) {
+                return;
+            }
+
+            const newHtml = logs.map(line =>
                 `<div class="log-line">${escapeHtml(line)}</div>`
             ).join('');
-            container.scrollTop = container.scrollHeight;
+
+            // Only touch DOM if content actually changed
+            if (container.innerHTML !== newHtml) {
+                container.innerHTML = newHtml;
+                container.scrollTop = container.scrollHeight;
+            }
         }
 
         function updateLogTitle() {
