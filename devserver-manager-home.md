@@ -6,7 +6,7 @@ cssclasses:
   - project-home
 ---
 # Dev Server Manager
-*[[dev-hub|Hub]]*
+*[[dev-hub|Hub]] · [[README|GitHub]]*
 
 Dashboard at `http://localhost:9000` managing all dev servers. Port registry, health checks, lifecycle management.
 
@@ -84,7 +84,3 @@ SORT type ASC
 > > FROM "knowledge/sessions/devserver-manager"
 > > SORT file.mtime DESC
 > > ```
-
-## GitHub
-
-- [[README]]
