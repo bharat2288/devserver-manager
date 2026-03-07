@@ -79,6 +79,7 @@ class ProjectCreate(BaseModel):
     start_command: str
     port: int
     url: Optional[str] = None  # Optional URL for "Open in Browser"
+    graph_declaration: Optional[str] = None  # Declaration filename in Impact Graph
 
 class ProjectUpdate(BaseModel):
     """Request model for updating a project."""
@@ -87,6 +88,7 @@ class ProjectUpdate(BaseModel):
     start_command: Optional[str] = None
     port: Optional[int] = None
     url: Optional[str] = None
+    graph_declaration: Optional[str] = None
 
 class Project(BaseModel):
     """Full project model with all fields."""
@@ -97,6 +99,7 @@ class Project(BaseModel):
     port: int
     created_at: str
     url: Optional[str] = None
+    graph_declaration: Optional[str] = None
 
 # =============================================================================
 # Runtime State
@@ -722,6 +725,8 @@ async def create_project(project: ProjectCreate):
     }
     if project.url:
         new_project["url"] = project.url
+    if project.graph_declaration:
+        new_project["graph_declaration"] = project.graph_declaration
 
     projects.append(new_project)
     save_projects(projects)
@@ -746,6 +751,11 @@ async def update_project(project_id: str, update: ProjectUpdate):
                 project["port"] = update.port
             if update.url is not None:
                 project["url"] = update.url
+            if update.graph_declaration is not None:
+                if update.graph_declaration:
+                    project["graph_declaration"] = update.graph_declaration
+                else:
+                    project.pop("graph_declaration", None)
 
             projects[i] = project
             save_projects(projects)

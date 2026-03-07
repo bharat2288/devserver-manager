@@ -646,6 +646,12 @@
                     <small>URL to open in browser when running</small>
                 </div>
 
+                <div class="form-group">
+                    <label for="project-graph-declaration">Graph Declaration <span style="font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted);">(optional)</span></label>
+                    <input type="text" id="project-graph-declaration" placeholder="moom-graph-v2.json">
+                    <small>Declaration filename in Impact Graph (opens graph viewer)</small>
+                </div>
+
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save</button>
@@ -785,6 +791,7 @@
                     <div class="project-actions">
                         ${renderActionButton(project)}
                         ${project.url && (project.status === 'running' || project.status === 'external') ? `<a href="${escapeHtml(project.url)}" target="_blank" class="btn btn-sm btn-secondary" title="Open in browser">Open</a>` : ''}
+                        ${project.graph_declaration ? `<a href="http://localhost:5173?project=${encodeURIComponent(project.graph_declaration)}" target="_blank" class="btn btn-sm btn-secondary" title="Open in Impact Graph">Graph</a>` : ''}
                         <div class="dropdown">
                             <button class="btn-icon" onclick="toggleDropdown('${project.id}', event)">&#8942;</button>
                             <div id="dropdown-${project.id}" class="dropdown-menu ${openDropdownId === project.id ? 'show' : ''}">
@@ -957,6 +964,7 @@
             document.getElementById('project-command').value = project.start_command;
             document.getElementById('project-port').value = project.port;
             document.getElementById('project-url').value = project.url || '';
+            document.getElementById('project-graph-declaration').value = project.graph_declaration || '';
             document.getElementById('modal-backdrop').classList.add('show');
 
             openDropdownId = null;
@@ -978,12 +986,14 @@
 
             const id = document.getElementById('edit-project-id').value;
             const urlValue = document.getElementById('project-url').value.trim();
+            const graphValue = document.getElementById('project-graph-declaration').value.trim();
             const data = {
                 name: document.getElementById('project-name').value,
                 directory: document.getElementById('project-directory').value,
                 start_command: document.getElementById('project-command').value,
                 port: parseInt(document.getElementById('project-port').value, 10),
                 url: urlValue || null,
+                graph_declaration: graphValue || null,
             };
 
             try {
