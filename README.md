@@ -1,20 +1,24 @@
 # Dev Server Manager
 
-A lightweight local dashboard for managing multiple development servers. See which servers are running, start and stop them with one click, stream logs in real time, and never lose track of a port again.
+A lightweight local dashboard for managing multiple development servers. Organize servers into groups, start and stop them with one click, stream logs in real time, and auto-launch on Windows boot. Never lose track of a port again.
 
 Built for developers juggling multiple services (frontend + backend, microservices, side projects) who want a visual overview without the overhead of Docker Compose or PM2.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green) ![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey)
 
+![Dev Server Manager Dashboard](demos/images/v_dashboard__dropdown.png)
+
 ## Features
 
-- **Project registry** — Store project configs (name, directory, start command, port) with full CRUD
+- **Server groups** — Organize projects into collapsible groups (Active, Standby, Archive, or your own)
+- **Drag-and-drop** — Reorder servers within groups or move them between groups
+- **Auto-start on boot** — Groups marked AUTO launch their servers sequentially on Windows startup
+- **Batch operations** — Start All / Stop All per group
 - **Three-state status detection** — Running (we started it), External (port occupied by something else), Stopped
 - **One-click start/stop/restart** — Launch and terminate processes from the browser
 - **Log streaming** — Live-tailing last 100 lines per project, updated every 2 seconds
 - **Process persistence** — Managed processes survive manager restarts; the dashboard reconnects to them
 - **Force kill** — Kill external processes holding a port you need, with multi-method fallback
-- **Port introspection** — See what process is using any port (PID, name, child count)
 - **Virtual environment support** — Relative paths like `venv/Scripts/python` are resolved automatically
 - **fnm integration** — Detects Fast Node Manager installations so `npm` commands work out of the box
 - **Zero dependencies frontend** — Single HTML file with embedded CSS/JS, no build step
@@ -43,18 +47,25 @@ python main.py
 
 Then open [http://localhost:9000](http://localhost:9000) in your browser.
 
-**Optional:** Create a desktop shortcut (Windows):
+### Auto-Start on Boot
+
+Place the included `start-silent.vbs` in your Windows Startup folder to launch the manager silently on login:
 
 ```powershell
-.\create_shortcut.ps1
+# Copy to Startup folder
+Copy-Item start-silent.vbs "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\"
 ```
+
+Groups marked **AUTO** will start their servers sequentially (2-second delay between each) when the manager launches.
 
 ### Adding Projects
 
-1. Click **+ Add Project** in the dashboard
-2. Fill in the project name, directory path, start command, and port
+1. Click **+ Server** in the dashboard
+2. Fill in the project name, directory path, start command, port, and group
 3. Click Save
 4. Hit **Start** to launch the server
+
+![Add Server Modal](demos/images/modal_add_server.png)
 
 Or copy `config/projects.example.json` to `config/projects.json` and edit manually.
 
@@ -67,8 +78,8 @@ Browser (localhost:9000)
 ┌─────────────────────────────────────────────┐
 │          FastAPI Backend (main.py)           │
 │                                             │
-│  Projects CRUD  ·  Process Manager  ·  Port │
-│  (JSON storage)   (subprocess/psutil) Check │
+│  Groups CRUD  ·  Projects CRUD  ·  Process  │
+│  (JSON storage)  (JSON storage)   Manager   │
 └─────────────────────────────────────────────┘
     │                    │                │
     ▼                    ▼                ▼
@@ -84,10 +95,17 @@ projects.json    File-based logs    psutil/socket
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| `GET` | `/api/groups` | List all groups |
+| `POST` | `/api/groups` | Create a new group |
+| `PUT` | `/api/groups/{id}` | Update group (name, auto_start, collapsed) |
+| `DELETE` | `/api/groups/{id}` | Delete group (moves projects to fallback) |
+| `POST` | `/api/groups/{id}/start-all` | Start all stopped servers in group |
+| `POST` | `/api/groups/{id}/stop-all` | Stop all running servers in group |
 | `GET` | `/api/projects` | List all projects with status |
 | `POST` | `/api/projects` | Add a new project |
 | `PUT` | `/api/projects/{id}` | Update project config |
 | `DELETE` | `/api/projects/{id}` | Remove project (stops if running) |
+| `PUT` | `/api/projects/{id}/move` | Move project to group + position |
 | `POST` | `/api/projects/{id}/start` | Start server process |
 | `POST` | `/api/projects/{id}/stop` | Stop server process |
 | `POST` | `/api/projects/{id}/restart` | Restart server process |
@@ -97,10 +115,19 @@ projects.json    File-based logs    psutil/socket
 
 ## Configuration
 
-Projects are stored in `config/projects.json` (created automatically on first use). See `config/projects.example.json` for the format:
+Projects and groups are stored in `config/projects.json` (created automatically on first use). See `config/projects.example.json` for the format:
 
 ```json
 {
+  "groups": [
+    {
+      "id": "active",
+      "name": "Active",
+      "auto_start": true,
+      "collapsed": false,
+      "position": 0
+    }
+  ],
   "projects": [
     {
       "id": "my-api",
@@ -108,7 +135,9 @@ Projects are stored in `config/projects.json` (created automatically on first us
       "directory": "C:/dev/my-project/backend",
       "start_command": "python -m uvicorn main:app --reload --port 8000",
       "port": 8000,
-      "url": "http://localhost:8000"
+      "url": "http://localhost:8000",
+      "group": "active",
+      "position": 0
     }
   ]
 }

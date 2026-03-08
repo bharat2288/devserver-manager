@@ -585,6 +585,24 @@
             cursor: text;
         }
 
+        /* Custom scrollbar for log panel */
+        .log-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .log-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .log-content::-webkit-scrollbar-thumb {
+            background: var(--border-subtle);
+            border-radius: 3px;
+        }
+
+        .log-content::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
         .log-content:empty::before {
             content: 'No logs yet. Select a running project to view logs.';
             color: var(--text-muted);

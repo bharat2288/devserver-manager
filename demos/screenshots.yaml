@@ -1,0 +1,64 @@
+base_url: http://localhost:9000
+output_dir: demos/images
+wait_until: domcontentloaded    # SSE/polling prevents networkidle
+
+viewport:
+  width: 1440
+  height: 820
+
+captures:
+  - name: v_dashboard
+    description: "Full dashboard with groups expanded, mixed server states"
+    path: /
+    element: ".container"
+    padding: 24
+    delay: 3.0
+
+  - name: v_dashboard__archive_collapsed
+    description: "Dashboard with Archive group collapsed"
+    path: /
+    element: ".container"
+    padding: 24
+    actions:
+      - click: ".group-section:last-child .group-header"
+      - wait: 0.5
+    delay: 2.0
+
+  - name: v_dashboard__logs
+    description: "Dashboard with log panel showing output from a running server"
+    path: /
+    element: ".container"
+    padding: 24
+    viewport: { width: 1440, height: 1200 }
+    actions:
+      - click: ".project-card:first-child"
+      - wait: 2.5
+    delay: 1.0
+
+  - name: v_dashboard__dropdown
+    description: "Project card with overflow dropdown menu open"
+    path: /
+    element: ".container"
+    padding: 24
+    actions:
+      - click: ".project-card:first-child .btn-icon"
+      - wait: 0.5
+    delay: 1.0
+
+  - name: modal_add_server
+    description: "Add Server modal over dimmed dashboard"
+    path: /
+    viewport: { width: 900, height: 1050 }
+    actions:
+      - click: "button:has-text('+ Server')"
+      - wait: 0.5
+    delay: 1.0
+
+  - name: modal_create_group
+    description: "Create Group modal over dimmed dashboard"
+    path: /
+    viewport: { width: 900, height: 520 }
+    actions:
+      - click: "button:has-text('+ Group')"
+      - wait: 0.5
+    delay: 1.0

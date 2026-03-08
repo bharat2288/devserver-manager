@@ -1,0 +1,51 @@
+{
+  "captures": {
+    "v_dashboard": {
+      "captured_at": "2026-03-08T16:10:00Z",
+      "file": "v_dashboard.png",
+      "element": ".container",
+      "dimensions": "1896x3552",
+      "description": "Full dashboard with groups expanded, mixed server states"
+    },
+    "v_dashboard__archive_collapsed": {
+      "captured_at": "2026-03-08T16:10:00Z",
+      "file": "v_dashboard__archive_collapsed.png",
+      "element": ".container",
+      "dimensions": "1896x3552",
+      "description": "Dashboard with Archive group collapsed"
+    },
+    "v_dashboard__logs": {
+      "captured_at": "2026-03-08T16:10:00Z",
+      "file": "v_dashboard__logs.png",
+      "element": ".container",
+      "dimensions": "1896x2058",
+      "description": "Dashboard with log panel showing output from a running server"
+    },
+    "v_dashboard__dropdown": {
+      "captured_at": "2026-03-08T16:10:00Z",
+      "file": "v_dashboard__dropdown.png",
+      "element": ".container",
+      "dimensions": "1896x2058",
+      "description": "Project card with overflow dropdown menu open"
+    },
+    "modal_add_server": {
+      "captured_at": "2026-03-08T16:10:00Z",
+      "file": "modal_add_server.png",
+      "dimensions": "1800x2100",
+      "description": "Add Server modal over dimmed dashboard"
+    },
+    "modal_create_group": {
+      "captured_at": "2026-03-08T16:10:00Z",
+      "file": "modal_create_group.png",
+      "dimensions": "1800x1040",
+      "description": "Create Group modal over dimmed dashboard"
+    }
+  },
+  "meta": {
+    "last_run": "2026-03-08T16:10:00Z",
+    "engine": "screengrab/1.1",
+    "project": "devserver-manager",
+    "base_url": "http://localhost:9000",
+    "viewport": "1440x820"
+  }
+}
