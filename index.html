@@ -96,7 +96,7 @@
         }
 
         /* =================================================================
-           Header - Character Moment
+           Header
            ================================================================= */
         header {
             display: flex;
@@ -124,7 +124,6 @@
             color: var(--text-secondary);
         }
 
-        /* Hand-drawn accent - Stacked servers with signal */
         .server-stack {
             position: absolute;
             top: 4px;
@@ -146,23 +145,9 @@
             fill: none;
         }
 
-        /* =================================================================
-           Labels (V3 and V6 styles)
-           ================================================================= */
-        .label {
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--text-tertiary);
-        }
-
-        .label-section {
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--accent-camel);
+        .header-actions {
+            display: flex;
+            gap: 8px;
         }
 
         /* =================================================================
@@ -224,6 +209,11 @@
             font-size: 13px;
         }
 
+        .btn-xs {
+            padding: 4px 8px;
+            font-size: 11px;
+        }
+
         .btn-icon {
             padding: 6px;
             background: transparent;
@@ -240,52 +230,201 @@
         }
 
         /* =================================================================
-           Project Cards
+           Group Accordion
            ================================================================= */
-        .projects-list {
+        .groups-container {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 16px;
             margin-bottom: 32px;
         }
 
-        .project-card {
-            background: var(--bg-surface);
+        .group-section {
             border-radius: var(--radius-xl);
             border: 1px solid var(--border-subtle);
-            padding: 20px 24px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            transition: all 0.15s;
-            box-shadow: var(--shadow-sm);
-            position: relative;
+            overflow: hidden;
+            transition: border-color 0.2s;
         }
 
-        .project-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
-            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        .group-section.drag-over {
+            border-color: var(--accent-camel);
+            box-shadow: inset 0 0 0 1px var(--accent-camel-subtle);
+        }
+
+        .group-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            background: var(--bg-surface);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s;
+        }
+
+        .group-header:hover {
+            background: var(--bg-raised);
+        }
+
+        .group-collapse-icon {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            transition: transform 0.2s;
+            width: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .group-section.collapsed .group-collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .group-name {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--accent-camel);
+            flex: 1;
+            min-width: 0;
+        }
+
+        .group-name-input {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--accent-camel);
+            background: var(--bg-base);
+            border: 1px solid var(--accent-camel);
+            border-radius: var(--radius-sm);
+            padding: 2px 8px;
+            outline: none;
+            font-family: var(--font-base);
+        }
+
+        .group-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .group-count {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .group-running-count {
+            font-size: 12px;
+            color: var(--semantic-success);
+        }
+
+        .auto-start-badge {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .auto-start-badge.on {
+            background: rgba(122, 176, 122, 0.15);
+            color: var(--semantic-success);
+            border: 1px solid rgba(122, 176, 122, 0.3);
+        }
+
+        .auto-start-badge.off {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .auto-start-badge:hover {
+            opacity: 0.8;
+        }
+
+        .group-actions {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .group-body {
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .group-section.collapsed .group-body {
+            max-height: 0;
+        }
+
+        .group-projects {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            background: var(--border-subtle);
+        }
+
+        .group-empty {
+            padding: 24px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            background: var(--bg-base);
+        }
+
+        /* =================================================================
+           Project Cards (within groups)
+           ================================================================= */
+        .project-card {
+            background: var(--bg-base);
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: all 0.15s;
+            position: relative;
+            cursor: grab;
         }
 
         .project-card:hover {
             background: var(--bg-raised);
-            border-color: var(--border-default);
         }
 
         .project-card.selected {
             border-left: 3px solid var(--accent-camel);
-            padding-left: 21px;
+            padding-left: 17px;
+        }
+
+        .project-card.dragging {
+            opacity: 0.4;
+        }
+
+        .project-card.drag-over-card {
+            border-top: 2px solid var(--accent-camel);
+        }
+
+        .drag-handle {
+            color: var(--text-muted);
+            cursor: grab;
+            font-size: 14px;
+            padding: 2px;
+            flex-shrink: 0;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+        .project-card:hover .drag-handle {
+            opacity: 1;
         }
 
         .status-indicator {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             flex-shrink: 0;
         }
@@ -312,13 +451,12 @@
 
         .project-name {
             font-weight: 600;
-            font-size: 15px;
-            margin-bottom: 4px;
+            font-size: 14px;
             color: var(--text-primary);
         }
 
         .project-meta {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--text-tertiary);
             white-space: nowrap;
             overflow: hidden;
@@ -327,7 +465,7 @@
 
         .project-actions {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
         }
 
@@ -345,7 +483,7 @@
             border: 1px solid var(--border-default);
             border-radius: var(--radius-lg);
             padding: 4px;
-            min-width: 120px;
+            min-width: 160px;
             z-index: 100;
             display: none;
             box-shadow: var(--shadow-lg);
@@ -358,13 +496,13 @@
         .dropdown-item {
             display: block;
             width: 100%;
-            padding: 10px 12px;
+            padding: 8px 12px;
             text-align: left;
             background: none;
             border: none;
             color: var(--text-primary);
             font-family: var(--font-base);
-            font-size: 14px;
+            font-size: 13px;
             cursor: pointer;
             border-radius: var(--radius-md);
             transition: background 0.15s;
@@ -378,21 +516,19 @@
             color: var(--semantic-error);
         }
 
-        /* =================================================================
-           Empty State
-           ================================================================= */
-        .empty-state {
-            text-align: center;
-            padding: 48px 24px;
-            color: var(--text-secondary);
-            background: var(--bg-surface);
-            border-radius: var(--radius-xl);
-            border: 1px solid var(--border-subtle);
+        .dropdown-separator {
+            height: 1px;
+            background: var(--border-subtle);
+            margin: 4px 0;
         }
 
-        .empty-state p {
-            margin-bottom: 20px;
-            font-size: 15px;
+        .dropdown-label {
+            padding: 6px 12px 4px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
         }
 
         /* =================================================================
@@ -521,7 +657,7 @@
             color: var(--text-tertiary);
         }
 
-        .form-group input {
+        .form-group input, .form-group select {
             width: 100%;
             padding: 14px 16px;
             background: var(--bg-base);
@@ -535,7 +671,7 @@
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
         }
 
-        .form-group input:focus {
+        .form-group input:focus, .form-group select:focus {
             border-color: var(--accent-camel);
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 0 0 3px var(--accent-camel-subtle);
         }
@@ -581,24 +717,24 @@
             <div class="brand">
                 <h1 class="title">
                     Server Manager
-                    <!-- Hand-drawn: Stacked servers with signal pulse -->
                     <svg class="server-stack" viewBox="0 0 40 36" fill="none">
-                        <!-- Three server bars - slightly varied for hand-drawn feel -->
                         <rect x="2" y="4" width="24" height="6" rx="2"/>
                         <rect x="2" y="14" width="24" height="6" rx="2"/>
                         <rect x="2" y="24" width="24" height="6" rx="2"/>
-                        <!-- Signal waves emanating -->
                         <path class="signal" d="M30 15 Q33 12, 30 9"/>
                         <path class="signal" d="M34 18 Q38 13, 34 6"/>
                     </svg>
                 </h1>
                 <p class="tagline">Local development server dashboard</p>
             </div>
-            <button class="btn btn-primary" onclick="openAddModal()">+ Add Project</button>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="openCreateGroupModal()">+ Group</button>
+                <button class="btn btn-primary" onclick="openAddModal()">+ Server</button>
+            </div>
         </header>
 
-        <div id="projects-list" class="projects-list">
-            <!-- Projects will be rendered here -->
+        <div id="groups-container" class="groups-container">
+            <!-- Groups and projects rendered here -->
         </div>
 
         <div class="log-panel">
@@ -610,10 +746,10 @@
         </div>
     </div>
 
-    <!-- Add/Edit Modal -->
+    <!-- Add/Edit Project Modal -->
     <div id="modal-backdrop" class="modal-backdrop" onclick="closeModalOnBackdrop(event)">
         <div class="modal" onclick="event.stopPropagation()">
-            <h2 id="modal-title">Add Project</h2>
+            <h2 id="modal-title">Add Server</h2>
             <form id="project-form" onsubmit="saveProject(event)">
                 <input type="hidden" id="edit-project-id">
 
@@ -637,19 +773,21 @@
                 <div class="form-group">
                     <label for="project-port">Port</label>
                     <input type="number" id="project-port" placeholder="3000" min="1" max="65535" required>
-                    <small>Port the server will listen on</small>
                 </div>
 
                 <div class="form-group">
                     <label for="project-url">URL <span style="font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted);">(optional)</span></label>
                     <input type="text" id="project-url" placeholder="http://localhost:3000">
-                    <small>URL to open in browser when running</small>
                 </div>
 
                 <div class="form-group">
                     <label for="project-graph-declaration">Graph Declaration <span style="font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted);">(optional)</span></label>
                     <input type="text" id="project-graph-declaration" placeholder="moom-graph-v2.json">
-                    <small>Declaration filename in Impact Graph (opens graph viewer)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="project-group">Group</label>
+                    <select id="project-group"></select>
                 </div>
 
                 <div class="modal-actions">
@@ -660,20 +798,43 @@
         </div>
     </div>
 
+    <!-- Create Group Modal -->
+    <div id="group-modal-backdrop" class="modal-backdrop" onclick="closeGroupModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <h2>New Group</h2>
+            <form id="group-form" onsubmit="saveGroup(event)">
+                <div class="form-group">
+                    <label for="group-name-input">Group Name</label>
+                    <input type="text" id="group-name-input" placeholder="My Group" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeGroupModalBtn()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // =================================================================
         // State
         // =================================================================
         let projects = [];
+        let groups = [];
         let selectedProjectId = null;
         let openDropdownId = null;
         let pollInterval = null;
         let logPollInterval = null;
 
+        // Drag-and-drop state
+        let draggedProjectId = null;
+        let dragOverGroupId = null;
+        let dragOverCardId = null;
+
         // =================================================================
         // API Helpers
         // =================================================================
-        const API_TIMEOUT_MS = 10000;  // 10 second timeout
+        const API_TIMEOUT_MS = 10000;
 
         async function api(method, endpoint, body = null) {
             const controller = new AbortController();
@@ -698,17 +859,13 @@
                         const errorData = await response.json();
                         errorMessage = errorData.detail || errorMessage;
                     } catch {
-                        // Response wasn't JSON, use status text
                         errorMessage = response.statusText || errorMessage;
                     }
                     throw new Error(errorMessage);
                 }
 
-                // Handle empty responses
                 const text = await response.text();
-                if (!text) {
-                    return null;
-                }
+                if (!text) return null;
 
                 try {
                     return JSON.parse(text);
@@ -730,16 +887,19 @@
         let consecutiveErrors = 0;
         const MAX_CONSECUTIVE_ERRORS = 3;
 
-        async function fetchProjects() {
+        async function fetchData() {
             try {
-                projects = await api('GET', '/projects');
-                consecutiveErrors = 0;  // Reset on success
-                renderProjects();
+                const [projectsData, groupsData] = await Promise.all([
+                    api('GET', '/projects'),
+                    api('GET', '/groups'),
+                ]);
+                projects = projectsData || [];
+                groups = groupsData || [];
+                consecutiveErrors = 0;
+                render();
             } catch (err) {
                 consecutiveErrors++;
-                console.error('Failed to fetch projects:', err.message);
-
-                // Show warning after multiple consecutive failures
+                console.error('Failed to fetch data:', err.message);
                 if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
                     console.warn('Multiple consecutive API failures - server may be down');
                 }
@@ -755,7 +915,6 @@
                     renderLogs(data.logs);
                 }
             } catch (err) {
-                // Don't spam console for log fetch failures during polling
                 if (err.message.includes('timed out')) {
                     console.warn('Log fetch timed out');
                 }
@@ -765,55 +924,144 @@
         // =================================================================
         // Rendering
         // =================================================================
-        function renderProjects() {
-            const container = document.getElementById('projects-list');
+        function render() {
+            // Never re-render during a drag — it replaces DOM and kills the drag session
+            if (draggedProjectId) return;
 
-            if (projects.length === 0) {
+            const container = document.getElementById('groups-container');
+
+            if (groups.length === 0 && projects.length === 0) {
                 container.innerHTML = `
-                    <div class="empty-state">
-                        <p>No projects configured yet.</p>
-                        <button class="btn btn-primary" onclick="openAddModal()">Add your first project</button>
+                    <div style="text-align: center; padding: 48px 24px; color: var(--text-secondary); background: var(--bg-surface); border-radius: var(--radius-xl); border: 1px solid var(--border-subtle);">
+                        <p style="margin-bottom: 20px; font-size: 15px;">No servers configured yet.</p>
+                        <button class="btn btn-primary" onclick="openAddModal()">Add your first server</button>
                     </div>
                 `;
                 return;
             }
 
-            container.innerHTML = projects.map(project => `
-                <div class="project-card ${project.id === selectedProjectId ? 'selected' : ''}" data-id="${project.id}">
+            // Sort groups by position
+            const sortedGroups = [...groups].sort((a, b) => (a.position || 0) - (b.position || 0));
+
+            container.innerHTML = sortedGroups.map(group => {
+                const groupProjects = projects
+                    .filter(p => p.group === group.id)
+                    .sort((a, b) => (a.position || 0) - (b.position || 0));
+
+                const runningCount = groupProjects.filter(p => p.status === 'running').length;
+                const isCollapsed = group.collapsed;
+
+                return `
+                    <div class="group-section ${isCollapsed ? 'collapsed' : ''} ${dragOverGroupId === group.id ? 'drag-over' : ''}"
+                         data-group-id="${group.id}"
+                         ondragover="onGroupDragOver(event, '${group.id}')"
+                         ondragleave="onGroupDragLeave(event, '${group.id}')"
+                         ondrop="onGroupDrop(event, '${group.id}')">
+                        <div class="group-header" onclick="toggleGroup('${group.id}')">
+                            <span class="group-collapse-icon">&#9660;</span>
+                            <span class="group-name" ondblclick="startRenameGroup(event, '${group.id}')">${escapeHtml(group.name)}</span>
+                            <div class="group-meta">
+                                ${runningCount > 0 ? `<span class="group-running-count">${runningCount} running</span>` : ''}
+                                <span class="group-count">${groupProjects.length} server${groupProjects.length !== 1 ? 's' : ''}</span>
+                                <span class="auto-start-badge ${group.auto_start ? 'on' : 'off'}"
+                                      onclick="toggleAutoStart(event, '${group.id}', ${!group.auto_start})"
+                                      title="${group.auto_start ? 'Auto-start enabled — click to disable' : 'Auto-start disabled — click to enable'}">
+                                    ${group.auto_start ? 'AUTO' : 'MANUAL'}
+                                </span>
+                            </div>
+                            <div class="group-actions" onclick="event.stopPropagation()">
+                                ${groupProjects.length > 0 ? `
+                                    ${runningCount < groupProjects.length ? `<button class="btn btn-xs btn-secondary" onclick="startAllInGroup('${group.id}')" title="Start all">Start All</button>` : ''}
+                                    ${runningCount > 0 ? `<button class="btn btn-xs btn-secondary" onclick="stopAllInGroup('${group.id}')" title="Stop all">Stop All</button>` : ''}
+                                ` : ''}
+                                <div class="dropdown">
+                                    <button class="btn-icon" onclick="toggleDropdown('group-${group.id}', event)">&#8942;</button>
+                                    <div id="dropdown-group-${group.id}" class="dropdown-menu ${openDropdownId === 'group-' + group.id ? 'show' : ''}">
+                                        <button class="dropdown-item" onclick="startRenameGroupFromMenu('${group.id}')">Rename</button>
+                                        <button class="dropdown-item danger" onclick="deleteGroup('${group.id}')">Delete Group</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="group-body">
+                            <div class="group-projects">
+                                ${groupProjects.length === 0
+                                    ? `<div class="group-empty">No servers in this group. Drag one here.</div>`
+                                    : groupProjects.map(project => renderProjectCard(project, group)).join('')
+                                }
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            updateLogTitle();
+        }
+
+        function renderProjectCard(project, group) {
+            const isSelected = project.id === selectedProjectId;
+            const isDragging = project.id === draggedProjectId;
+            const isDragOver = project.id === dragOverCardId;
+
+            return `
+                <div class="project-card ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over-card' : ''}"
+                     data-id="${project.id}"
+                     draggable="true"
+                     ondragstart="onDragStart(event, '${project.id}')"
+                     ondragend="onDragEnd(event)"
+                     ondragover="onCardDragOver(event, '${project.id}')"
+                     ondragleave="onCardDragLeave(event)"
+                     ondrop="onCardDrop(event, '${project.id}', '${group.id}')">
+                    <span class="drag-handle">&#8801;</span>
                     <div class="status-indicator ${project.status}"></div>
                     <div class="project-info" onclick="selectProject('${project.id}')">
                         <div class="project-name">${escapeHtml(project.name)}</div>
                         <div class="project-meta">
-                            localhost:${project.port} &bull; ${escapeHtml(project.directory)}
-                            ${project.status === 'external' ? ' &bull; Port in use externally' : ''}
+                            :${project.port} &bull; ${escapeHtml(project.directory)}
+                            ${project.status === 'external' ? ' &bull; external' : ''}
                         </div>
                     </div>
                     <div class="project-actions">
                         ${renderActionButton(project)}
-                        ${project.url && (project.status === 'running' || project.status === 'external') ? `<a href="${escapeHtml(project.url)}" target="_blank" class="btn btn-sm btn-secondary" title="Open in browser">Open</a>` : ''}
-                        ${project.graph_declaration ? `<a href="http://localhost:5173?project=${encodeURIComponent(project.graph_declaration)}" target="_blank" class="btn btn-sm btn-secondary" title="Open in Impact Graph">Graph</a>` : ''}
+                        ${project.url && (project.status === 'running' || project.status === 'external') ? `<a href="${escapeHtml(project.url)}" target="_blank" class="btn btn-xs btn-secondary">Open</a>` : ''}
+                        ${project.graph_declaration ? `<a href="http://localhost:5173?project=${encodeURIComponent(project.graph_declaration)}" target="_blank" class="btn btn-xs btn-secondary">Graph</a>` : ''}
                         <div class="dropdown">
                             <button class="btn-icon" onclick="toggleDropdown('${project.id}', event)">&#8942;</button>
                             <div id="dropdown-${project.id}" class="dropdown-menu ${openDropdownId === project.id ? 'show' : ''}">
                                 <button class="dropdown-item" onclick="openEditModal('${project.id}')">Edit</button>
+                                ${renderMoveToGroupItems(project)}
+                                <div class="dropdown-separator"></div>
                                 <button class="dropdown-item danger" onclick="deleteProject('${project.id}')">Delete</button>
                             </div>
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `;
+        }
+
+        function renderMoveToGroupItems(project) {
+            const otherGroups = groups.filter(g => g.id !== project.group);
+            if (otherGroups.length === 0) return '';
+
+            return `
+                <div class="dropdown-separator"></div>
+                <div class="dropdown-label">Move to</div>
+                ${otherGroups.map(g =>
+                    `<button class="dropdown-item" onclick="moveProjectToGroup('${project.id}', '${g.id}')">${escapeHtml(g.name)}</button>`
+                ).join('')}
+            `;
         }
 
         function renderActionButton(project) {
             if (project.status === 'running') {
                 return `
-                    <button class="btn btn-sm btn-secondary" onclick="restartProject('${project.id}')">Restart</button>
-                    <button class="btn btn-sm btn-danger" onclick="stopProject('${project.id}')">Stop</button>
+                    <button class="btn btn-xs btn-secondary" onclick="restartProject('${project.id}')">Restart</button>
+                    <button class="btn btn-xs btn-danger" onclick="stopProject('${project.id}')">Stop</button>
                 `;
             } else if (project.status === 'external') {
-                return `<button class="btn btn-sm btn-danger" onclick="forceKillPort(${project.port})" title="Kill whatever is using this port">Force Kill</button>`;
+                return `<button class="btn btn-xs btn-danger" onclick="forceKillPort(${project.port})" title="Kill external process">Force Kill</button>`;
             } else {
-                return `<button class="btn btn-sm btn-primary" onclick="startProject('${project.id}')">Start</button>`;
+                return `<button class="btn btn-xs btn-primary" onclick="startProject('${project.id}')">Start</button>`;
             }
         }
 
@@ -824,7 +1072,6 @@
                 return;
             }
 
-            // Don't re-render while user is selecting text — it kills the selection
             const selection = window.getSelection();
             if (selection && selection.toString().length > 0 && container.contains(selection.anchorNode)) {
                 return;
@@ -834,7 +1081,6 @@
                 `<div class="log-line">${escapeHtml(line)}</div>`
             ).join('');
 
-            // Only touch DOM if content actually changed
             if (container.innerHTML !== newHtml) {
                 container.innerHTML = newHtml;
                 container.scrollTop = container.scrollHeight;
@@ -852,12 +1098,177 @@
         }
 
         // =================================================================
-        // Actions
+        // Drag and Drop
+        // =================================================================
+        // Key principle: NEVER call render() during a drag operation.
+        // Re-rendering replaces DOM elements and kills the HTML5 drag session.
+        // Use direct DOM class manipulation for visual feedback instead.
+
+        function onDragStart(event, projectId) {
+            draggedProjectId = projectId;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', projectId);
+
+            // Pause polling so render() doesn't fire mid-drag
+            clearInterval(pollInterval);
+            pollInterval = null;
+
+            // Apply dragging class after browser captures drag image
+            setTimeout(() => {
+                const el = document.querySelector(`[data-id="${projectId}"]`);
+                if (el) el.classList.add('dragging');
+            }, 0);
+        }
+
+        function onDragEnd(event) {
+            // Clean up all visual state
+            document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            document.querySelectorAll('.drag-over-card').forEach(el => el.classList.remove('drag-over-card'));
+
+            draggedProjectId = null;
+            dragOverGroupId = null;
+            dragOverCardId = null;
+
+            // Resume polling
+            if (!pollInterval) {
+                pollInterval = setInterval(fetchData, 3000);
+            }
+        }
+
+        function onGroupDragOver(event, groupId) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+
+            if (dragOverGroupId !== groupId) {
+                // Remove old group highlight
+                document.querySelectorAll('.group-section.drag-over').forEach(el => el.classList.remove('drag-over'));
+                dragOverGroupId = groupId;
+                // Add new group highlight
+                const section = document.querySelector(`[data-group-id="${groupId}"]`);
+                if (section) section.classList.add('drag-over');
+            }
+        }
+
+        function onGroupDragLeave(event, groupId) {
+            // Only clear if truly leaving the group (not entering a child)
+            const section = document.querySelector(`[data-group-id="${groupId}"]`);
+            if (!section) return;
+            const rect = section.getBoundingClientRect();
+            const x = event.clientX;
+            const y = event.clientY;
+            if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+                section.classList.remove('drag-over');
+                if (dragOverGroupId === groupId) {
+                    dragOverGroupId = null;
+                }
+            }
+        }
+
+        async function onGroupDrop(event, groupId) {
+            event.preventDefault();
+            const projectId = event.dataTransfer.getData('text/plain');
+            if (!projectId) return;
+
+            // Clean up visual state
+            document.querySelectorAll('.drag-over, .dragging, .drag-over-card').forEach(el => {
+                el.classList.remove('drag-over', 'dragging', 'drag-over-card');
+            });
+            draggedProjectId = null;
+            dragOverGroupId = null;
+            dragOverCardId = null;
+
+            // Get current projects in this group to find position
+            const groupProjects = projects
+                .filter(p => p.group === groupId)
+                .sort((a, b) => (a.position || 0) - (b.position || 0));
+
+            // Drop at end of group
+            const position = groupProjects.length;
+
+            try {
+                await api('PUT', `/projects/${projectId}/move`, { group: groupId, position });
+                await fetchData();
+            } catch (err) {
+                alert('Failed to move: ' + err.message);
+            }
+
+            // Resume polling
+            if (!pollInterval) {
+                pollInterval = setInterval(fetchData, 3000);
+            }
+        }
+
+        function onCardDragOver(event, cardId) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.dataTransfer.dropEffect = 'move';
+
+            if (dragOverCardId !== cardId) {
+                // Remove old card highlight
+                document.querySelectorAll('.drag-over-card').forEach(el => el.classList.remove('drag-over-card'));
+                dragOverCardId = cardId;
+                // Add highlight to target card
+                const el = document.querySelector(`[data-id="${cardId}"]`);
+                if (el) el.classList.add('drag-over-card');
+            }
+        }
+
+        function onCardDragLeave(event) {
+            const el = event.currentTarget;
+            if (el) el.classList.remove('drag-over-card');
+            dragOverCardId = null;
+        }
+
+        async function onCardDrop(event, targetCardId, groupId) {
+            event.preventDefault();
+            event.stopPropagation();
+            const projectId = event.dataTransfer.getData('text/plain');
+
+            // Clean up visual state
+            document.querySelectorAll('.drag-over, .dragging, .drag-over-card').forEach(el => {
+                el.classList.remove('drag-over', 'dragging', 'drag-over-card');
+            });
+
+            if (!projectId || projectId === targetCardId) {
+                draggedProjectId = null;
+                dragOverGroupId = null;
+                dragOverCardId = null;
+                return;
+            }
+
+            draggedProjectId = null;
+            dragOverGroupId = null;
+            dragOverCardId = null;
+
+            // Find position of target card in its group
+            const groupProjects = projects
+                .filter(p => p.group === groupId)
+                .sort((a, b) => (a.position || 0) - (b.position || 0));
+
+            const targetIndex = groupProjects.findIndex(p => p.id === targetCardId);
+            const position = targetIndex >= 0 ? targetIndex : groupProjects.length;
+
+            try {
+                await api('PUT', `/projects/${projectId}/move`, { group: groupId, position });
+                await fetchData();
+            } catch (err) {
+                alert('Failed to move: ' + err.message);
+            }
+
+            // Resume polling
+            if (!pollInterval) {
+                pollInterval = setInterval(fetchData, 3000);
+            }
+        }
+
+        // =================================================================
+        // Project Actions
         // =================================================================
         function selectProject(id) {
             selectedProjectId = id;
             updateLogTitle();
-            renderProjects();
+            render();
             fetchLogs();
         }
 
@@ -865,7 +1276,7 @@
             try {
                 await api('POST', `/projects/${id}/start`);
                 selectProject(id);
-                await fetchProjects();
+                await fetchData();
             } catch (err) {
                 alert('Failed to start: ' + err.message);
             }
@@ -874,7 +1285,7 @@
         async function stopProject(id) {
             try {
                 await api('POST', `/projects/${id}/stop`);
-                await fetchProjects();
+                await fetchData();
             } catch (err) {
                 alert('Failed to stop: ' + err.message);
             }
@@ -884,15 +1295,14 @@
             try {
                 await api('POST', `/projects/${id}/restart`);
                 selectProject(id);
-                await fetchProjects();
+                await fetchData();
             } catch (err) {
                 alert('Failed to restart: ' + err.message);
             }
         }
 
         async function deleteProject(id) {
-            if (!confirm('Delete this project?')) return;
-
+            if (!confirm('Delete this server?')) return;
             try {
                 await api('DELETE', `/projects/${id}`);
                 if (selectedProjectId === id) {
@@ -900,15 +1310,28 @@
                     updateLogTitle();
                     clearLogs();
                 }
-                await fetchProjects();
+                await fetchData();
             } catch (err) {
                 alert('Failed to delete: ' + err.message);
             }
         }
 
+        async function moveProjectToGroup(projectId, groupId) {
+            openDropdownId = null;
+            try {
+                const groupProjects = projects.filter(p => p.group === groupId);
+                await api('PUT', `/projects/${projectId}/move`, {
+                    group: groupId,
+                    position: groupProjects.length,
+                });
+                await fetchData();
+            } catch (err) {
+                alert('Failed to move: ' + err.message);
+            }
+        }
+
         async function forceKillPort(port) {
             if (!confirm(`Force kill the process using port ${port}?\n\nThis will terminate the process and all its children.`)) return;
-
             try {
                 const result = await api('POST', `/ports/${port}/kill`);
                 if (result.status === 'not_in_use') {
@@ -917,7 +1340,7 @@
                     const killedCount = result.killed ? result.killed.length : 0;
                     alert(`Killed ${killedCount} process(es).\n\n${result.message || ''}`);
                 }
-                await fetchProjects();
+                await fetchData();
             } catch (err) {
                 alert('Failed to kill process: ' + err.message);
             }
@@ -928,28 +1351,155 @@
         }
 
         // =================================================================
+        // Group Actions
+        // =================================================================
+        async function toggleGroup(groupId) {
+            const group = groups.find(g => g.id === groupId);
+            if (!group) return;
+            try {
+                await api('PUT', `/groups/${groupId}`, { collapsed: !group.collapsed });
+                await fetchData();
+            } catch (err) {
+                console.error('Failed to toggle group:', err.message);
+            }
+        }
+
+        async function toggleAutoStart(event, groupId, newValue) {
+            event.stopPropagation();
+            try {
+                await api('PUT', `/groups/${groupId}`, { auto_start: newValue });
+                await fetchData();
+            } catch (err) {
+                alert('Failed to update: ' + err.message);
+            }
+        }
+
+        async function startAllInGroup(groupId) {
+            try {
+                const result = await api('POST', `/groups/${groupId}/start-all`);
+                const msg = [];
+                if (result.started.length) msg.push(`Started: ${result.started.join(', ')}`);
+                if (result.skipped.length) msg.push(`Skipped: ${result.skipped.join(', ')}`);
+                if (result.failed.length) msg.push(`Failed: ${result.failed.map(f => f.name).join(', ')}`);
+                if (msg.length) alert(msg.join('\n'));
+                await fetchData();
+            } catch (err) {
+                alert('Failed: ' + err.message);
+            }
+        }
+
+        async function stopAllInGroup(groupId) {
+            try {
+                const result = await api('POST', `/groups/${groupId}/stop-all`);
+                await fetchData();
+            } catch (err) {
+                alert('Failed: ' + err.message);
+            }
+        }
+
+        function startRenameGroup(event, groupId) {
+            event.stopPropagation();
+            const nameEl = event.target;
+            const group = groups.find(g => g.id === groupId);
+            if (!group) return;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'group-name-input';
+            input.value = group.name;
+            nameEl.replaceWith(input);
+            input.focus();
+            input.select();
+
+            const finish = async () => {
+                const newName = input.value.trim();
+                if (newName && newName !== group.name) {
+                    try {
+                        await api('PUT', `/groups/${groupId}`, { name: newName });
+                        await fetchData();
+                    } catch (err) {
+                        alert('Failed to rename: ' + err.message);
+                        await fetchData();
+                    }
+                } else {
+                    await fetchData();
+                }
+            };
+
+            input.addEventListener('blur', finish);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+                if (e.key === 'Escape') { input.value = group.name; input.blur(); }
+            });
+        }
+
+        function startRenameGroupFromMenu(groupId) {
+            openDropdownId = null;
+            render();
+            // Small delay to let render finish, then find the group name element
+            setTimeout(() => {
+                const section = document.querySelector(`[data-group-id="${groupId}"]`);
+                if (section) {
+                    const nameEl = section.querySelector('.group-name');
+                    if (nameEl) {
+                        nameEl.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+                    }
+                }
+            }, 50);
+        }
+
+        async function deleteGroup(groupId) {
+            const group = groups.find(g => g.id === groupId);
+            if (!group) return;
+            if (groups.length <= 1) {
+                alert('Cannot delete the last group.');
+                return;
+            }
+            const projectCount = projects.filter(p => p.group === groupId).length;
+            const msg = projectCount > 0
+                ? `Delete group "${group.name}"?\n\n${projectCount} server(s) will be moved to the last remaining group.`
+                : `Delete group "${group.name}"?`;
+            if (!confirm(msg)) return;
+            openDropdownId = null;
+            try {
+                await api('DELETE', `/groups/${groupId}`);
+                await fetchData();
+            } catch (err) {
+                alert('Failed to delete: ' + err.message);
+            }
+        }
+
+        // =================================================================
         // Dropdown Menu
         // =================================================================
         function toggleDropdown(id, event) {
             event.stopPropagation();
             openDropdownId = openDropdownId === id ? null : id;
-            renderProjects();
+            render();
         }
 
         document.addEventListener('click', () => {
             if (openDropdownId) {
                 openDropdownId = null;
-                renderProjects();
+                render();
             }
         });
 
         // =================================================================
-        // Modal
+        // Project Modal
         // =================================================================
+        function populateGroupSelect(selectedGroup) {
+            const select = document.getElementById('project-group');
+            select.innerHTML = groups.map(g =>
+                `<option value="${g.id}" ${g.id === selectedGroup ? 'selected' : ''}>${escapeHtml(g.name)}</option>`
+            ).join('');
+        }
+
         function openAddModal() {
-            document.getElementById('modal-title').textContent = 'Add Project';
+            document.getElementById('modal-title').textContent = 'Add Server';
             document.getElementById('edit-project-id').value = '';
             document.getElementById('project-form').reset();
+            populateGroupSelect(groups.length > 0 ? groups[0].id : '');
             document.getElementById('modal-backdrop').classList.add('show');
         }
 
@@ -957,7 +1507,7 @@
             const project = projects.find(p => p.id === id);
             if (!project) return;
 
-            document.getElementById('modal-title').textContent = 'Edit Project';
+            document.getElementById('modal-title').textContent = 'Edit Server';
             document.getElementById('edit-project-id').value = id;
             document.getElementById('project-name').value = project.name;
             document.getElementById('project-directory').value = project.directory;
@@ -965,10 +1515,11 @@
             document.getElementById('project-port').value = project.port;
             document.getElementById('project-url').value = project.url || '';
             document.getElementById('project-graph-declaration').value = project.graph_declaration || '';
+            populateGroupSelect(project.group);
             document.getElementById('modal-backdrop').classList.add('show');
 
             openDropdownId = null;
-            renderProjects();
+            render();
         }
 
         function closeModal() {
@@ -994,6 +1545,7 @@
                 port: parseInt(document.getElementById('project-port').value, 10),
                 url: urlValue || null,
                 graph_declaration: graphValue || null,
+                group: document.getElementById('project-group').value,
             };
 
             try {
@@ -1003,9 +1555,41 @@
                     await api('POST', '/projects', data);
                 }
                 closeModal();
-                await fetchProjects();
+                await fetchData();
             } catch (err) {
                 alert('Failed to save: ' + err.message);
+            }
+        }
+
+        // =================================================================
+        // Group Modal
+        // =================================================================
+        function openCreateGroupModal() {
+            document.getElementById('group-name-input').value = '';
+            document.getElementById('group-modal-backdrop').classList.add('show');
+        }
+
+        function closeGroupModalBtn() {
+            document.getElementById('group-modal-backdrop').classList.remove('show');
+        }
+
+        function closeGroupModal(event) {
+            if (event.target === event.currentTarget) {
+                closeGroupModalBtn();
+            }
+        }
+
+        async function saveGroup(event) {
+            event.preventDefault();
+            const name = document.getElementById('group-name-input').value.trim();
+            if (!name) return;
+
+            try {
+                await api('POST', '/groups', { name, auto_start: false, collapsed: false });
+                closeGroupModalBtn();
+                await fetchData();
+            } catch (err) {
+                alert('Failed to create group: ' + err.message);
             }
         }
 
@@ -1022,21 +1606,16 @@
         // Polling
         // =================================================================
         function startPolling() {
-            // Poll projects every 3 seconds
-            pollInterval = setInterval(fetchProjects, 3000);
-
-            // Poll logs every 2 seconds when a project is selected
+            pollInterval = setInterval(fetchData, 3000);
             logPollInterval = setInterval(() => {
-                if (selectedProjectId) {
-                    fetchLogs();
-                }
+                if (selectedProjectId) fetchLogs();
             }, 2000);
         }
 
         // =================================================================
         // Initialize
         // =================================================================
-        fetchProjects();
+        fetchData();
         startPolling();
     </script>
 </body>

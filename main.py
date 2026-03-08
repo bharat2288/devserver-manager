@@ -2,9 +2,11 @@
 Dev Server Manager — FastAPI Backend
 
 A local dashboard for managing multiple development servers.
-Provides REST API for project CRUD, process start/stop, and log retrieval.
+Provides REST API for project CRUD, process start/stop, log retrieval,
+and server group management with auto-start on startup.
 """
 
+import asyncio
 import collections
 import json
 import logging
@@ -52,6 +54,7 @@ PROJECTS_FILE = CONFIG_DIR / "projects.json"
 RUNNING_FILE = CONFIG_DIR / "running.json"  # Persisted runtime state
 MANAGER_PORT = 9000
 LOG_BUFFER_SIZE = 100
+AUTO_START_DELAY_SECONDS = 2  # Delay between sequential auto-starts
 
 # fnm (Fast Node Manager) — detect Node.js installation dynamically
 def _detect_fnm_node_path() -> Optional[Path]:
@@ -80,6 +83,7 @@ class ProjectCreate(BaseModel):
     port: int
     url: Optional[str] = None  # Optional URL for "Open in Browser"
     graph_declaration: Optional[str] = None  # Declaration filename in Impact Graph
+    group: Optional[str] = None  # Group ID (defaults to first group)
 
 class ProjectUpdate(BaseModel):
     """Request model for updating a project."""
@@ -89,6 +93,7 @@ class ProjectUpdate(BaseModel):
     port: Optional[int] = None
     url: Optional[str] = None
     graph_declaration: Optional[str] = None
+    group: Optional[str] = None
 
 class Project(BaseModel):
     """Full project model with all fields."""
@@ -100,6 +105,25 @@ class Project(BaseModel):
     created_at: str
     url: Optional[str] = None
     graph_declaration: Optional[str] = None
+    group: str = "active"
+    position: int = 0
+
+class GroupCreate(BaseModel):
+    """Request model for creating a new group."""
+    name: str
+    auto_start: bool = False
+    collapsed: bool = False
+
+class GroupUpdate(BaseModel):
+    """Request model for updating a group."""
+    name: Optional[str] = None
+    auto_start: Optional[bool] = None
+    collapsed: Optional[bool] = None
+
+class ProjectMove(BaseModel):
+    """Request model for moving a project to a group at a position."""
+    group: str
+    position: int
 
 # =============================================================================
 # Runtime State
@@ -118,19 +142,51 @@ running_processes_lock = threading.Lock()
 # Persistence Layer
 # =============================================================================
 
-def load_projects() -> list[dict]:
-    """Load projects from JSON file."""
+def load_config() -> dict:
+    """Load the full config (groups + projects) from JSON file."""
     if not PROJECTS_FILE.exists():
-        return []
+        return {"groups": [], "projects": []}
     with open(PROJECTS_FILE, "r") as f:
         data = json.load(f)
-    return data.get("projects", [])
+    # Migration: if no groups key, add defaults and assign all projects to "active"
+    if "groups" not in data:
+        data["groups"] = [
+            {"id": "active", "name": "Active", "auto_start": True, "collapsed": False, "position": 0},
+            {"id": "standby", "name": "Standby", "auto_start": True, "collapsed": False, "position": 1},
+            {"id": "archive", "name": "Archive", "auto_start": False, "collapsed": True, "position": 2},
+        ]
+        for i, project in enumerate(data.get("projects", [])):
+            if "group" not in project:
+                project["group"] = "active"
+            if "position" not in project:
+                project["position"] = i
+    return data
 
-def save_projects(projects: list[dict]) -> None:
-    """Save projects to JSON file."""
+def save_config(config: dict) -> None:
+    """Save the full config (groups + projects) to JSON file."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     with open(PROJECTS_FILE, "w") as f:
-        json.dump({"projects": projects}, f, indent=2)
+        json.dump(config, f, indent=2)
+
+def load_projects() -> list[dict]:
+    """Load projects from JSON file."""
+    return load_config().get("projects", [])
+
+def save_projects(projects: list[dict]) -> None:
+    """Save projects to JSON file, preserving groups."""
+    config = load_config()
+    config["projects"] = projects
+    save_config(config)
+
+def load_groups() -> list[dict]:
+    """Load groups from JSON file."""
+    return load_config().get("groups", [])
+
+def save_groups(groups: list[dict]) -> None:
+    """Save groups to JSON file, preserving projects."""
+    config = load_config()
+    config["groups"] = groups
+    save_config(config)
 
 def load_running_state() -> dict:
     """Load persisted running state (PIDs) from disk."""
@@ -658,16 +714,86 @@ def stop_project_process(project_id: str) -> None:
     logger.info(f"Stopped project {project_id}")
 
 # =============================================================================
+# Auto-Start Logic
+# =============================================================================
+
+async def auto_start_groups() -> None:
+    """
+    Auto-start all servers in groups that have auto_start=True.
+    Starts servers sequentially in position order within each group,
+    with a delay between each to allow ports to bind.
+    """
+    config = load_config()
+    groups = sorted(config.get("groups", []), key=lambda g: g.get("position", 0))
+    projects = config.get("projects", [])
+
+    auto_start_groups_list = [g for g in groups if g.get("auto_start", False)]
+    if not auto_start_groups_list:
+        logger.info("No groups with auto_start enabled")
+        return
+
+    total_started = 0
+    total_failed = 0
+
+    for group in auto_start_groups_list:
+        group_id = group["id"]
+        group_name = group["name"]
+
+        # Get projects in this group, sorted by position
+        group_projects = sorted(
+            [p for p in projects if p.get("group") == group_id],
+            key=lambda p: p.get("position", 0)
+        )
+
+        if not group_projects:
+            logger.info(f"Auto-start group '{group_name}' has no projects, skipping")
+            continue
+
+        logger.info(f"Auto-starting {len(group_projects)} server(s) in group '{group_name}'")
+
+        for project in group_projects:
+            project_id = project["id"]
+            project_name = project.get("name", project_id)
+
+            # Skip if already running (e.g., restored from previous session)
+            with running_processes_lock:
+                if project_id in running_processes:
+                    logger.info(f"  Skipping {project_name} — already running")
+                    continue
+
+            # Skip if port already in use
+            if is_port_in_use(project["port"]):
+                logger.info(f"  Skipping {project_name} — port {project['port']} already in use")
+                continue
+
+            try:
+                result = start_project_process(project)
+                logger.info(f"  Started {project_name} (PID: {result['pid']})")
+                total_started += 1
+            except Exception as e:
+                logger.error(f"  Failed to auto-start {project_name}: {e}")
+                total_failed += 1
+
+            # Wait between starts so ports can bind before dependents start
+            await asyncio.sleep(AUTO_START_DELAY_SECONDS)
+
+    logger.info(f"Auto-start complete: {total_started} started, {total_failed} failed")
+
+# =============================================================================
 # FastAPI Application
 # =============================================================================
 
-app = FastAPI(title="Dev Server Manager", version="1.0.0")
+app = FastAPI(title="Dev Server Manager", version="2.0.0")
 
 @app.on_event("startup")
 async def startup_event():
-    """Restore running state on startup."""
+    """Restore running state and auto-start groups on startup."""
     logger.info("Dev Server Manager starting up...")
     restore_running_state()
+
+    # Auto-start groups in background so the server is responsive immediately
+    asyncio.create_task(auto_start_groups())
+
     logger.info(f"Dev Server Manager ready on port {MANAGER_PORT}")
 
 # -----------------------------------------------------------------------------
@@ -683,13 +809,154 @@ async def serve_dashboard():
     return FileResponse(html_path, media_type="text/html")
 
 # -----------------------------------------------------------------------------
+# Group CRUD
+# -----------------------------------------------------------------------------
+
+@app.get("/api/groups")
+async def list_groups():
+    """List all groups with project counts."""
+    config = load_config()
+    groups = sorted(config.get("groups", []), key=lambda g: g.get("position", 0))
+    projects = config.get("projects", [])
+
+    result = []
+    for group in groups:
+        group_projects = [p for p in projects if p.get("group") == group["id"]]
+        result.append({
+            **group,
+            "project_count": len(group_projects),
+        })
+    return result
+
+@app.post("/api/groups")
+async def create_group(group: GroupCreate):
+    """Create a new group."""
+    config = load_config()
+    groups = config.get("groups", [])
+
+    # Generate unique ID from name
+    group_id = group.name.lower().replace(" ", "-")
+    # Ensure unique
+    existing_ids = {g["id"] for g in groups}
+    if group_id in existing_ids:
+        base_id = group_id
+        counter = 1
+        while group_id in existing_ids:
+            group_id = f"{base_id}-{counter}"
+            counter += 1
+
+    # Position at the end (but before archive if it exists)
+    max_position = max((g.get("position", 0) for g in groups), default=-1)
+    new_group = {
+        "id": group_id,
+        "name": group.name,
+        "auto_start": group.auto_start,
+        "collapsed": group.collapsed,
+        "position": max_position + 1,
+    }
+
+    groups.append(new_group)
+    config["groups"] = groups
+    save_config(config)
+
+    return new_group
+
+@app.put("/api/groups/{group_id}")
+async def update_group(group_id: str, update: GroupUpdate):
+    """Update a group's properties (name, auto_start, collapsed)."""
+    config = load_config()
+    groups = config.get("groups", [])
+
+    for i, group in enumerate(groups):
+        if group["id"] == group_id:
+            if update.name is not None:
+                group["name"] = update.name
+            if update.auto_start is not None:
+                group["auto_start"] = update.auto_start
+            if update.collapsed is not None:
+                group["collapsed"] = update.collapsed
+            groups[i] = group
+            config["groups"] = groups
+            save_config(config)
+            return group
+
+    raise HTTPException(status_code=404, detail="Group not found")
+
+@app.delete("/api/groups/{group_id}")
+async def delete_group(group_id: str):
+    """Delete a group. Moves any projects in it to the last remaining group."""
+    config = load_config()
+    groups = config.get("groups", [])
+    projects = config.get("projects", [])
+
+    if len(groups) <= 1:
+        raise HTTPException(status_code=400, detail="Cannot delete the last group")
+
+    # Find the group to delete
+    group_to_delete = None
+    for g in groups:
+        if g["id"] == group_id:
+            group_to_delete = g
+            break
+
+    if not group_to_delete:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    # Find a fallback group (the last one that isn't being deleted)
+    remaining_groups = [g for g in groups if g["id"] != group_id]
+    fallback_group = remaining_groups[-1]
+
+    # Move projects from deleted group to fallback
+    max_position = max(
+        (p.get("position", 0) for p in projects if p.get("group") == fallback_group["id"]),
+        default=-1
+    )
+    for project in projects:
+        if project.get("group") == group_id:
+            project["group"] = fallback_group["id"]
+            max_position += 1
+            project["position"] = max_position
+
+    # Remove the group
+    config["groups"] = remaining_groups
+    config["projects"] = projects
+
+    # Re-normalize group positions
+    for i, g in enumerate(sorted(config["groups"], key=lambda x: x.get("position", 0))):
+        g["position"] = i
+
+    save_config(config)
+    return {"status": "deleted", "projects_moved_to": fallback_group["id"]}
+
+@app.put("/api/groups/reorder")
+async def reorder_groups(group_ids: list[str]):
+    """Reorder groups by providing the ordered list of group IDs."""
+    config = load_config()
+    groups = config.get("groups", [])
+
+    group_map = {g["id"]: g for g in groups}
+
+    # Validate all IDs exist
+    for gid in group_ids:
+        if gid not in group_map:
+            raise HTTPException(status_code=400, detail=f"Unknown group ID: {gid}")
+
+    # Reorder
+    for i, gid in enumerate(group_ids):
+        group_map[gid]["position"] = i
+
+    config["groups"] = list(group_map.values())
+    save_config(config)
+    return {"status": "reordered"}
+
+# -----------------------------------------------------------------------------
 # Project CRUD
 # -----------------------------------------------------------------------------
 
 @app.get("/api/projects")
 async def list_projects():
     """
-    List all projects with their current status. Thread-safe.
+    List all projects with their current status, grouped and ordered. Thread-safe.
 
     Returns list of projects, each with an added 'status' field.
     """
@@ -710,10 +977,25 @@ async def list_projects():
 @app.post("/api/projects")
 async def create_project(project: ProjectCreate):
     """Create a new project configuration."""
-    projects = load_projects()
+    config = load_config()
+    projects = config.get("projects", [])
+    groups = config.get("groups", [])
 
     # Generate unique ID
     new_id = uuid.uuid4().hex[:8]
+
+    # Default to first group if not specified
+    target_group = project.group
+    if not target_group and groups:
+        target_group = groups[0]["id"]
+    elif not target_group:
+        target_group = "active"
+
+    # Position at end of target group
+    max_position = max(
+        (p.get("position", 0) for p in projects if p.get("group") == target_group),
+        default=-1
+    )
 
     new_project = {
         "id": new_id,
@@ -722,6 +1004,8 @@ async def create_project(project: ProjectCreate):
         "start_command": project.start_command,
         "port": project.port,
         "created_at": datetime.utcnow().isoformat() + "Z",
+        "group": target_group,
+        "position": max_position + 1,
     }
     if project.url:
         new_project["url"] = project.url
@@ -729,14 +1013,16 @@ async def create_project(project: ProjectCreate):
         new_project["graph_declaration"] = project.graph_declaration
 
     projects.append(new_project)
-    save_projects(projects)
+    config["projects"] = projects
+    save_config(config)
 
     return new_project
 
 @app.put("/api/projects/{project_id}")
 async def update_project(project_id: str, update: ProjectUpdate):
     """Update an existing project configuration."""
-    projects = load_projects()
+    config = load_config()
+    projects = config.get("projects", [])
 
     for i, project in enumerate(projects):
         if project["id"] == project_id:
@@ -756,12 +1042,67 @@ async def update_project(project_id: str, update: ProjectUpdate):
                     project["graph_declaration"] = update.graph_declaration
                 else:
                     project.pop("graph_declaration", None)
+            if update.group is not None:
+                project["group"] = update.group
 
             projects[i] = project
-            save_projects(projects)
+            config["projects"] = projects
+            save_config(config)
             return project
 
     raise HTTPException(status_code=404, detail="Project not found")
+
+@app.put("/api/projects/{project_id}/move")
+async def move_project(project_id: str, move: ProjectMove):
+    """Move a project to a different group and/or position."""
+    config = load_config()
+    projects = config.get("projects", [])
+    groups = config.get("groups", [])
+
+    # Validate group exists
+    group_ids = {g["id"] for g in groups}
+    if move.group not in group_ids:
+        raise HTTPException(status_code=400, detail=f"Unknown group: {move.group}")
+
+    # Find the project
+    project_to_move = None
+    for p in projects:
+        if p["id"] == project_id:
+            project_to_move = p
+            break
+
+    if not project_to_move:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    old_group = project_to_move.get("group")
+
+    # Get projects in the target group (excluding the one being moved)
+    target_group_projects = sorted(
+        [p for p in projects if p.get("group") == move.group and p["id"] != project_id],
+        key=lambda p: p.get("position", 0)
+    )
+
+    # Insert at the requested position
+    target_group_projects.insert(move.position, project_to_move)
+
+    # Update positions for the target group
+    for i, p in enumerate(target_group_projects):
+        p["group"] = move.group
+        p["position"] = i
+
+    # If moved from a different group, re-normalize the old group positions
+    if old_group and old_group != move.group:
+        old_group_projects = sorted(
+            [p for p in projects if p.get("group") == old_group and p["id"] != project_id],
+            key=lambda p: p.get("position", 0)
+        )
+        for i, p in enumerate(old_group_projects):
+            p["position"] = i
+
+    config["projects"] = projects
+    save_config(config)
+
+    return {"status": "moved", "group": move.group, "position": move.position}
 
 @app.delete("/api/projects/{project_id}")
 async def delete_project(project_id: str):
@@ -828,6 +1169,75 @@ async def restart_project(project_id: str):
     result = start_project_process(project)
     logger.info(f"Restarted project {project.get('name', project_id)}")
     return {"status": "restarted", **result}
+
+# -----------------------------------------------------------------------------
+# Group Batch Operations
+# -----------------------------------------------------------------------------
+
+@app.post("/api/groups/{group_id}/start-all")
+async def start_all_in_group(group_id: str):
+    """Start all stopped servers in a group sequentially."""
+    projects = load_projects()
+    group_projects = sorted(
+        [p for p in projects if p.get("group") == group_id],
+        key=lambda p: p.get("position", 0)
+    )
+
+    if not group_projects:
+        raise HTTPException(status_code=404, detail="No projects in this group")
+
+    started = []
+    failed = []
+    skipped = []
+
+    for project in group_projects:
+        project_id = project["id"]
+        project_name = project.get("name", project_id)
+
+        # Skip if already running
+        with running_processes_lock:
+            if project_id in running_processes:
+                skipped.append(project_name)
+                continue
+
+        if is_port_in_use(project["port"]):
+            skipped.append(project_name)
+            continue
+
+        try:
+            start_project_process(project)
+            started.append(project_name)
+            # Brief delay between starts
+            await asyncio.sleep(AUTO_START_DELAY_SECONDS)
+        except Exception as e:
+            failed.append({"name": project_name, "error": str(e)})
+
+    return {"started": started, "failed": failed, "skipped": skipped}
+
+@app.post("/api/groups/{group_id}/stop-all")
+async def stop_all_in_group(group_id: str):
+    """Stop all running servers in a group."""
+    projects = load_projects()
+    group_projects = [p for p in projects if p.get("group") == group_id]
+
+    stopped = []
+    failed = []
+
+    for project in group_projects:
+        project_id = project["id"]
+        project_name = project.get("name", project_id)
+
+        with running_processes_lock:
+            if project_id not in running_processes:
+                continue
+
+        try:
+            stop_project_process(project_id)
+            stopped.append(project_name)
+        except Exception as e:
+            failed.append({"name": project_name, "error": str(e)})
+
+    return {"stopped": stopped, "failed": failed}
 
 # -----------------------------------------------------------------------------
 # Port Management
