@@ -7,7 +7,7 @@ cssclasses:
 ---
 # Dev Server Manager
 *[[dev-hub|Hub]] · [[README|GitHub]]*
-<span class="hub-status">v2.0 — Server groups, drag-and-drop, auto-start on boot</span>
+<span class="hub-status">v2.1 — Git health panel, lazygit launcher, branch standardization</span>
 
 Dashboard at `http://localhost:9000` managing all dev servers. Port registry, health checks, lifecycle management.
 
