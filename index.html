@@ -614,6 +614,170 @@
         }
 
         /* =================================================================
+           Git Health Panel
+           ================================================================= */
+        .git-health-section {
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--border-subtle);
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+
+        .git-health-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            background: var(--bg-surface);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s;
+        }
+
+        .git-health-header:hover {
+            background: var(--bg-raised);
+        }
+
+        .git-health-section .group-collapse-icon {
+            /* Reuse existing collapse icon styles */
+        }
+
+        .git-health-section.collapsed .group-collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .git-health-body {
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .git-health-section.collapsed .git-health-body {
+            max-height: 0;
+        }
+
+        .git-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 20px;
+            background: var(--bg-base);
+            border-top: 1px solid var(--border-subtle);
+            font-size: 13px;
+        }
+
+        .git-row:hover {
+            background: var(--bg-raised);
+        }
+
+        .git-project-name {
+            width: 150px;
+            flex-shrink: 0;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .git-branch {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--accent-camel);
+            background: var(--accent-camel-subtle);
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .git-dirty-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            min-width: 24px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .git-dirty-badge.clean {
+            color: var(--semantic-success);
+            background: rgba(122, 176, 122, 0.15);
+        }
+
+        .git-dirty-badge.moderate {
+            color: var(--semantic-warning);
+            background: rgba(212, 165, 116, 0.15);
+        }
+
+        .git-dirty-badge.dirty {
+            color: var(--semantic-error);
+            background: rgba(205, 100, 100, 0.15);
+        }
+
+        .git-commit {
+            flex: 1;
+            min-width: 0;
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .git-commit-age {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .git-unpushed {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--semantic-warning);
+            background: rgba(212, 165, 116, 0.15);
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
+        }
+
+        .git-not-git {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-style: italic;
+            flex: 1;
+        }
+
+        .git-lazygit-btn {
+            padding: 4px 8px;
+            background: transparent;
+            color: var(--text-tertiary);
+            border: 1px solid var(--border-subtle);
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: all 0.15s;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .git-lazygit-btn:hover {
+            background: var(--bg-raised);
+            color: var(--accent-camel);
+            border-color: var(--accent-camel);
+        }
+
+        .git-health-summary {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* =================================================================
            Modal
            ================================================================= */
         .modal-backdrop {
@@ -755,6 +919,8 @@
             <!-- Groups and projects rendered here -->
         </div>
 
+        <div id="git-health-container"></div>
+
         <div class="log-panel">
             <div class="log-header">
                 <h2 id="log-title">/ Logs</h2>
@@ -843,6 +1009,11 @@
         let openDropdownId = null;
         let pollInterval = null;
         let logPollInterval = null;
+
+        // Git health state
+        let gitData = [];
+        let gitHealthCollapsed = false;
+        let gitPollInterval = null;
 
         // Drag-and-drop state
         let draggedProjectId = null;
@@ -939,6 +1110,16 @@
             }
         }
 
+        async function fetchGitStatus() {
+            try {
+                const data = await api('GET', '/git/status');
+                gitData = data || [];
+                renderGitHealth();
+            } catch (err) {
+                console.error('Failed to fetch git status:', err.message);
+            }
+        }
+
         // =================================================================
         // Rendering
         // =================================================================
@@ -1014,6 +1195,95 @@
             }).join('');
 
             updateLogTitle();
+        }
+
+        function renderGitHealth() {
+            const container = document.getElementById('git-health-container');
+            if (!gitData || gitData.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            // Count stats for summary
+            const gitRepos = gitData.filter(d => d.is_git);
+            const dirtyCount = gitRepos.filter(d => d.dirty_count > 0).length;
+            const unpushedCount = gitRepos.filter(d => d.unpushed_count > 0).length;
+
+            const summaryParts = [];
+            summaryParts.push(`${gitRepos.length} repo${gitRepos.length !== 1 ? 's' : ''}`);
+            if (dirtyCount > 0) summaryParts.push(`${dirtyCount} dirty`);
+            if (unpushedCount > 0) summaryParts.push(`${unpushedCount} unpushed`);
+
+            container.innerHTML = `
+                <div class="git-health-section ${gitHealthCollapsed ? 'collapsed' : ''}">
+                    <div class="git-health-header" onclick="toggleGitHealth()">
+                        <span class="group-collapse-icon">&#9660;</span>
+                        <span class="group-name">Git Health</span>
+                        <span class="git-health-summary">${summaryParts.join(' · ')}</span>
+                    </div>
+                    <div class="git-health-body">
+                        ${gitData.map(item => renderGitRow(item)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderGitRow(item) {
+            if (!item.is_git) {
+                return `
+                    <div class="git-row">
+                        <span class="git-project-name">${escapeHtml(item.project_name)}</span>
+                        <span class="git-not-git">not a git repo</span>
+                    </div>
+                `;
+            }
+
+            // Dirty badge class
+            let dirtyClass = 'clean';
+            let dirtyLabel = 'clean';
+            if (item.dirty_count > 0 && item.dirty_count <= 5) {
+                dirtyClass = 'moderate';
+                dirtyLabel = `${item.dirty_count} dirty`;
+            } else if (item.dirty_count > 5) {
+                dirtyClass = 'dirty';
+                dirtyLabel = `${item.dirty_count} dirty`;
+            }
+
+            // Commit info
+            const commitMsg = item.last_commit_msg
+                ? escapeHtml(item.last_commit_msg.length > 50 ? item.last_commit_msg.substring(0, 50) + '…' : item.last_commit_msg)
+                : '';
+            const commitAge = item.last_commit_age ? escapeHtml(item.last_commit_age) : '';
+
+            // Unpushed badge
+            const unpushedBadge = item.unpushed_count > 0
+                ? `<span class="git-unpushed">↑${item.unpushed_count}</span>`
+                : '';
+
+            return `
+                <div class="git-row">
+                    <span class="git-project-name">${escapeHtml(item.project_name)}</span>
+                    <span class="git-branch" title="${escapeHtml(item.branch || '')}">${escapeHtml(item.branch || '')}</span>
+                    <span class="git-dirty-badge ${dirtyClass}">${dirtyLabel}</span>
+                    <span class="git-commit" title="${commitMsg}">${commitMsg}</span>
+                    <span class="git-commit-age">${commitAge}</span>
+                    ${unpushedBadge}
+                    <button class="git-lazygit-btn" onclick="openLazygit('${item.project_id}')" title="Open lazygit">lg</button>
+                </div>
+            `;
+        }
+
+        function toggleGitHealth() {
+            gitHealthCollapsed = !gitHealthCollapsed;
+            renderGitHealth();
+        }
+
+        async function openLazygit(projectId) {
+            try {
+                await api('POST', `/projects/${projectId}/lazygit`);
+            } catch (err) {
+                alert('Failed to open lazygit: ' + err.message);
+            }
         }
 
         function renderProjectCard(project, group) {
@@ -1628,12 +1898,14 @@
             logPollInterval = setInterval(() => {
                 if (selectedProjectId) fetchLogs();
             }, 2000);
+            gitPollInterval = setInterval(fetchGitStatus, 30000);
         }
 
         // =================================================================
         // Initialize
         // =================================================================
         fetchData();
+        fetchGitStatus();
         startPolling();
     </script>
 </body>

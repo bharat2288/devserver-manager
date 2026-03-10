@@ -1482,6 +1482,125 @@ async def get_project_logs(project_id: str, lines: int = 100):
 
     return {"logs": log_lines, "status": "running"}
 
+# -----------------------------------------------------------------------------
+# Git Health
+# -----------------------------------------------------------------------------
+
+def _run_git_command(args: list[str], cwd: str, timeout: int = 5) -> subprocess.CompletedProcess:
+    """Run a git command in the given directory. Returns CompletedProcess."""
+    return subprocess.run(
+        ["git"] + args,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+
+
+def _get_git_status_for_project(project: dict) -> dict:
+    """Get git status info for a single project. Handles non-git dirs gracefully."""
+    project_id = project["id"]
+    project_name = project.get("name", project_id)
+    directory = project.get("directory", "")
+
+    result = {
+        "project_id": project_id,
+        "project_name": project_name,
+        "is_git": False,
+        "branch": None,
+        "dirty_count": 0,
+        "last_commit_msg": None,
+        "last_commit_age": None,
+        "unpushed_count": 0,
+    }
+
+    # Validate directory exists
+    if not directory or not Path(directory).exists():
+        return result
+
+    try:
+        # Check if it's a git repo
+        check = _run_git_command(["rev-parse", "--is-inside-work-tree"], cwd=directory)
+        if check.returncode != 0:
+            return result
+        result["is_git"] = True
+
+        # Branch name
+        branch = _run_git_command(["branch", "--show-current"], cwd=directory)
+        result["branch"] = branch.stdout.strip() or "HEAD (detached)"
+
+        # Dirty file count
+        status = _run_git_command(["status", "--porcelain"], cwd=directory)
+        if status.returncode == 0:
+            lines = [l for l in status.stdout.splitlines() if l.strip()]
+            result["dirty_count"] = len(lines)
+
+        # Last commit message + relative age
+        log = _run_git_command(
+            ["log", "--oneline", "-1", "--format=%s|%ar"],
+            cwd=directory,
+        )
+        if log.returncode == 0 and log.stdout.strip():
+            parts = log.stdout.strip().rsplit("|", 1)
+            result["last_commit_msg"] = parts[0] if len(parts) >= 1 else None
+            result["last_commit_age"] = parts[1] if len(parts) >= 2 else None
+
+        # Unpushed commit count (fails if no upstream configured)
+        unpushed = _run_git_command(
+            ["rev-list", "@{upstream}..HEAD", "--count"],
+            cwd=directory,
+        )
+        if unpushed.returncode == 0:
+            try:
+                result["unpushed_count"] = int(unpushed.stdout.strip())
+            except ValueError:
+                result["unpushed_count"] = 0
+
+    except subprocess.TimeoutExpired:
+        logger.warning(f"Git commands timed out for project {project_name}")
+    except Exception as e:
+        logger.warning(f"Error getting git status for {project_name}: {e}")
+
+    return result
+
+
+@app.get("/api/git/status")
+async def get_git_status():
+    """Get git status for all registered projects."""
+    projects = load_projects()
+    results = []
+    for project in projects:
+        status = _get_git_status_for_project(project)
+        results.append(status)
+    return results
+
+
+@app.post("/api/projects/{project_id}/lazygit")
+async def open_lazygit(project_id: str):
+    """Open lazygit in a new terminal window for the given project."""
+    project = get_project_by_id(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    directory = project.get("directory", "")
+    if not directory or not Path(directory).exists():
+        raise HTTPException(status_code=400, detail=f"Directory does not exist: {directory}")
+
+    # Convert forward slashes to backslashes for Windows cmd
+    win_directory = directory.replace("/", "\\")
+
+    try:
+        subprocess.Popen(
+            ["cmd", "/c", "start", "cmd", "/k", f"cd /d {win_directory} && lazygit"],
+            shell=False,
+        )
+        logger.info(f"Opened lazygit for project {project.get('name', project_id)}")
+        return {"status": "ok", "message": f"Lazygit opened for {project.get('name', project_id)}"}
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail="lazygit not found. Install with: winget install lazygit")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to open lazygit: {str(e)}")
+
 # =============================================================================
 # Entry Point
 # =============================================================================
