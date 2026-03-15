@@ -639,7 +639,7 @@ def start_project_process(project: dict) -> dict:
 
     except Exception as e:
         logger.error(f"Failed to start project {project_name}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start process: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to start process")
 
 def stop_project_process(project_id: str) -> None:
     """
@@ -1210,7 +1210,8 @@ async def start_all_in_group(group_id: str):
             # Brief delay between starts
             await asyncio.sleep(AUTO_START_DELAY_SECONDS)
         except Exception as e:
-            failed.append({"name": project_name, "error": str(e)})
+            logger.exception("Failed to start %s", project_name)
+            failed.append({"name": project_name, "error": "Failed to start"})
 
     return {"started": started, "failed": failed, "skipped": skipped}
 
@@ -1235,7 +1236,8 @@ async def stop_all_in_group(group_id: str):
             stop_project_process(project_id)
             stopped.append(project_name)
         except Exception as e:
-            failed.append({"name": project_name, "error": str(e)})
+            logger.exception("Failed to stop %s", project_name)
+            failed.append({"name": project_name, "error": "Failed to stop"})
 
     return {"stopped": stopped, "failed": failed}
 
@@ -1444,12 +1446,12 @@ async def get_port_info(port: int):
                 "children_count": len(children)
             }
         }
-    except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
         return {
             "in_use": True,
             "port": port,
             "process": {"pid": process.pid},
-            "error": str(e)
+            "error": "Process access denied or no longer exists"
         }
 
 # -----------------------------------------------------------------------------
@@ -1599,7 +1601,8 @@ async def open_lazygit(project_id: str):
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail="lazygit not found. Install with: winget install lazygit")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to open lazygit: {str(e)}")
+        logger.exception("Failed to open lazygit")
+        raise HTTPException(status_code=500, detail="Failed to open lazygit")
 
 # =============================================================================
 # Entry Point
