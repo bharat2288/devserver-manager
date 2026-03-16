@@ -783,7 +783,13 @@ async def auto_start_groups() -> None:
 # FastAPI Application
 # =============================================================================
 
-app = FastAPI(title="Dev Server Manager", version="2.0.0")
+_debug = os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
+app = FastAPI(
+    title="Dev Server Manager", version="2.0.0",
+    docs_url="/docs" if _debug else None,
+    redoc_url="/redoc" if _debug else None,
+    openapi_url="/openapi.json" if _debug else None,
+)
 
 @app.on_event("startup")
 async def startup_event():
