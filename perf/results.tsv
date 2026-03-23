@@ -1,0 +1,7 @@
+commit	timestamp	composite_ms	projects_p95	groups_p95	git_p95	logs_p95	duration_s	status	description
+8d21c7a	2026-03-23T06:56:16Z	1341.62	1298.67	1.25	2767.84	1.35		baseline	pre-optimization baseline (100ms socket timeout, serial everything)
+2b68767	2026-03-23T07:10:00Z	1323.40	1277.90	1.10	2736.50	1.30		kept	B1a: reduce socket timeout 100ms to 20ms
+c67bf45	2026-03-23T07:47:00Z	643.10	395.40	1.10	1780.30	1.50		kept	B1c: batch status — 1 net_connections() call instead of 23 socket connects
+d648038	2026-03-23T07:48:00Z	636.60	403.40	1.40	1738.20	1.40		kept	B3a: parallel git status with ThreadPoolExecutor (8 workers)
+32e094a	2026-03-23T07:50:00Z	635.40	386.90	1.10	1766.30	1.60		kept	B4a: convert list_projects + get_git_status from async def to def
+32e094a	2026-03-23T08:43:59.000317+00:00	703.88	433.89	1.12	1946.55	1.28	25.1	discarded	B2a+B5a+B6a+B7a: config caching + frontend change detection + groups fetch-once + regex escapeHtml

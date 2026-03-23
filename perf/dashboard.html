@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSM Perf — Experiment Dashboard</title>
+    <link href="https://fonts.cdnfonts.com/css/geist" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0c0f0d;
+            --bg-surface: #1a1d1b;
+            --bg-raised: #252a27;
+            --bg-elevated: #323832;
+            --border-subtle: #2a2f2c;
+            --border-default: #3a3f3c;
+            --text-primary: #fafafa;
+            --text-secondary: #a8a8a8;
+            --text-tertiary: #787878;
+            --text-muted: #585858;
+            --accent-camel: #d4a574;
+            --accent-camel-hover: #c9956c;
+            --semantic-success: #7ab07a;
+            --semantic-error: #cd6464;
+            --semantic-warning: #d4a574;
+            --font-base: 'Geist', 'Plus Jakarta Sans', -apple-system, sans-serif;
+            --font-display: 'Fraunces', Georgia, serif;
+            --font-mono: 'SF Mono', Monaco, 'Cascadia Code', Consolas, monospace;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            --radius-xl: 12px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-base);
+            font-size: 14px;
+            line-height: 1.5;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 48px 32px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+        }
+
+        .title {
+            font-family: var(--font-display);
+            font-size: 36px;
+            font-weight: 400;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .tagline {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .back-link {
+            color: var(--text-tertiary);
+            text-decoration: none;
+            font-size: 13px;
+            padding: 8px 14px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+            transition: all 0.15s;
+        }
+        .back-link:hover {
+            color: var(--text-primary);
+            border-color: var(--border-default);
+            background: var(--bg-raised);
+        }
+
+        /* ============ Summary Cards ============ */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .summary-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .summary-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
+            margin-bottom: 8px;
+        }
+
+        .summary-value {
+            font-family: var(--font-mono);
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .summary-value.improvement {
+            color: var(--semantic-success);
+        }
+        .summary-value.regression {
+            color: var(--semantic-error);
+        }
+        .summary-value.neutral {
+            color: var(--text-secondary);
+        }
+
+        .summary-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ============ Chart ============ */
+        .chart-section {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--accent-camel);
+            margin-bottom: 16px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 280px;
+            display: block;
+        }
+
+        /* ============ Endpoint Bars ============ */
+        .bars-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .bar-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
+            padding: 16px;
+        }
+
+        .bar-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .bar-track {
+            background: var(--bg-raised);
+            border-radius: 4px;
+            height: 8px;
+            margin-bottom: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bar-baseline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: var(--text-muted);
+            border-radius: 4px;
+            opacity: 0.4;
+        }
+
+        .bar-current {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: var(--accent-camel);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .bar-values {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 11px;
+        }
+
+        .bar-values .baseline-val { color: var(--text-muted); }
+        .bar-values .current-val { color: var(--accent-camel); }
+
+        /* ============ Results Table ============ */
+        .table-section {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+        }
+
+        .table-section .section-title {
+            padding: 20px 24px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        td {
+            padding: 10px 16px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        td.mono {
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .status-baseline {
+            background: rgba(212, 165, 116, 0.15);
+            color: var(--accent-camel);
+        }
+        .status-kept {
+            background: rgba(122, 176, 122, 0.15);
+            color: var(--semantic-success);
+        }
+        .status-discarded {
+            background: rgba(205, 100, 100, 0.15);
+            color: var(--semantic-error);
+        }
+
+        .empty-state {
+            padding: 48px 24px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .auto-refresh {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pulse {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--semantic-success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <div class="title">Perf Experiments</div>
+                <div class="tagline">Autoresearch-style performance optimization for DSM</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div class="auto-refresh"><span class="pulse"></span> Auto-refresh 5s</div>
+                <a href="/" class="back-link">Back to DSM</a>
+            </div>
+        </header>
+
+        <div class="summary-grid" id="summary-grid">
+            <div class="summary-card">
+                <div class="summary-label">Baseline</div>
+                <div class="summary-value neutral" id="baseline-value">—</div>
+                <div class="summary-sub">ms composite</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Current Best</div>
+                <div class="summary-value" id="current-value">—</div>
+                <div class="summary-sub">ms composite</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Improvement</div>
+                <div class="summary-value neutral" id="improvement-value">—</div>
+                <div class="summary-sub" id="improvement-sub">vs baseline</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Experiments</div>
+                <div class="summary-value neutral" id="experiment-count">0</div>
+                <div class="summary-sub" id="experiment-sub">0 kept / 0 discarded</div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="section-title">Composite Latency Over Experiments</div>
+            <canvas id="chart" height="280"></canvas>
+        </div>
+
+        <div class="bars-grid" id="bars-grid">
+            <div class="bar-card" id="bar-projects">
+                <div class="bar-label">/api/projects (50%)</div>
+                <div class="bar-track"><div class="bar-baseline"></div><div class="bar-current"></div></div>
+                <div class="bar-values"><span class="baseline-val">—</span><span class="current-val">—</span></div>
+            </div>
+            <div class="bar-card" id="bar-groups">
+                <div class="bar-label">/api/groups (15%)</div>
+                <div class="bar-track"><div class="bar-baseline"></div><div class="bar-current"></div></div>
+                <div class="bar-values"><span class="baseline-val">—</span><span class="current-val">—</span></div>
+            </div>
+            <div class="bar-card" id="bar-git">
+                <div class="bar-label">/api/git/status (25%)</div>
+                <div class="bar-track"><div class="bar-baseline"></div><div class="bar-current"></div></div>
+                <div class="bar-values"><span class="baseline-val">—</span><span class="current-val">—</span></div>
+            </div>
+            <div class="bar-card" id="bar-logs">
+                <div class="bar-label">/api/logs (10%)</div>
+                <div class="bar-track"><div class="bar-baseline"></div><div class="bar-current"></div></div>
+                <div class="bar-values"><span class="baseline-val">—</span><span class="current-val">—</span></div>
+            </div>
+        </div>
+
+        <div class="table-section">
+            <div class="section-title">Experiment Log</div>
+            <div id="results-table">
+                <div class="empty-state">No experiments yet. Run <code>python perf/run_experiment.py --baseline</code> to start.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lastData = null;
+
+        async function fetchResults() {
+            try {
+                const resp = await fetch('/api/perf/results');
+                if (!resp.ok) return;
+                const data = await resp.json();
+                if (JSON.stringify(data) !== JSON.stringify(lastData)) {
+                    lastData = data;
+                    render(data);
+                }
+            } catch (e) {
+                console.warn('Failed to fetch perf results:', e);
+            }
+        }
+
+        function render(data) {
+            if (!data || data.length === 0) return;
+
+            // Find baseline and latest kept
+            const baseline = data.find(r => r.status === 'baseline');
+            const kept = data.filter(r => r.status === 'kept');
+            const discarded = data.filter(r => r.status === 'discarded');
+            const latestKept = kept.length > 0 ? kept[kept.length - 1] : baseline;
+            const experiments = data.filter(r => r.status !== 'baseline');
+
+            // Summary cards
+            if (baseline) {
+                document.getElementById('baseline-value').textContent = Math.round(baseline.composite_ms);
+            }
+
+            if (latestKept) {
+                const el = document.getElementById('current-value');
+                el.textContent = Math.round(latestKept.composite_ms);
+                el.className = 'summary-value' + (latestKept === baseline ? ' neutral' : ' improvement');
+            }
+
+            if (baseline && latestKept && latestKept !== baseline) {
+                const pct = ((baseline.composite_ms - latestKept.composite_ms) / baseline.composite_ms * 100);
+                const el = document.getElementById('improvement-value');
+                el.textContent = (pct > 0 ? '-' : '+') + Math.abs(pct).toFixed(1) + '%';
+                el.className = 'summary-value ' + (pct > 0 ? 'improvement' : 'regression');
+
+                const speedup = baseline.composite_ms / latestKept.composite_ms;
+                document.getElementById('improvement-sub').textContent =
+                    pct > 0 ? `${speedup.toFixed(1)}x faster` : 'vs baseline';
+            }
+
+            document.getElementById('experiment-count').textContent = experiments.length;
+            document.getElementById('experiment-sub').textContent =
+                `${kept.length} kept / ${discarded.length} discarded`;
+
+            // Endpoint bars
+            if (baseline && latestKept) {
+                updateBar('bar-projects', baseline.projects_p95, latestKept.projects_p95);
+                updateBar('bar-groups', baseline.groups_p95, latestKept.groups_p95);
+                updateBar('bar-git', baseline.git_p95, latestKept.git_p95);
+                updateBar('bar-logs', baseline.logs_p95, latestKept.logs_p95);
+            }
+
+            // Chart
+            drawChart(data);
+
+            // Results table
+            renderTable(data);
+        }
+
+        function updateBar(id, baselineVal, currentVal) {
+            const card = document.getElementById(id);
+            if (!card) return;
+
+            const maxVal = Math.max(baselineVal, currentVal, 1);
+            const baselinePct = (baselineVal / maxVal) * 100;
+            const currentPct = (currentVal / maxVal) * 100;
+
+            card.querySelector('.bar-baseline').style.width = baselinePct + '%';
+            card.querySelector('.bar-current').style.width = currentPct + '%';
+
+            const improved = currentVal < baselineVal;
+            card.querySelector('.bar-current').style.background =
+                improved ? 'var(--semantic-success)' : 'var(--accent-camel)';
+
+            card.querySelector('.baseline-val').textContent = Math.round(baselineVal) + ' ms';
+            card.querySelector('.current-val').textContent = Math.round(currentVal) + ' ms';
+        }
+
+        function drawChart(data) {
+            const canvas = document.getElementById('chart');
+            const ctx = canvas.getContext('2d');
+
+            // High-DPI scaling
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+
+            const w = rect.width;
+            const h = rect.height;
+            const pad = { top: 20, right: 20, bottom: 40, left: 60 };
+
+            ctx.clearRect(0, 0, w, h);
+
+            if (data.length < 2) {
+                ctx.fillStyle = '#585858';
+                ctx.font = '13px Geist, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Waiting for experiments...', w / 2, h / 2);
+                return;
+            }
+
+            const values = data.map(d => d.composite_ms);
+            const maxVal = Math.max(...values) * 1.1;
+            const minVal = Math.min(0, Math.min(...values) * 0.9);
+
+            const plotW = w - pad.left - pad.right;
+            const plotH = h - pad.top - pad.bottom;
+
+            // Y-axis grid lines
+            ctx.strokeStyle = '#2a2f2c';
+            ctx.lineWidth = 1;
+            ctx.fillStyle = '#585858';
+            ctx.font = '11px SF Mono, Consolas, monospace';
+            ctx.textAlign = 'right';
+
+            const yTicks = 5;
+            for (let i = 0; i <= yTicks; i++) {
+                const val = minVal + (maxVal - minVal) * (1 - i / yTicks);
+                const y = pad.top + (i / yTicks) * plotH;
+                ctx.beginPath();
+                ctx.moveTo(pad.left, y);
+                ctx.lineTo(w - pad.right, y);
+                ctx.stroke();
+                ctx.fillText(Math.round(val) + ' ms', pad.left - 8, y + 4);
+            }
+
+            // Data points and line
+            const xStep = data.length > 1 ? plotW / (data.length - 1) : plotW;
+
+            // Line
+            ctx.beginPath();
+            ctx.strokeStyle = '#d4a574';
+            ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
+
+            data.forEach((d, i) => {
+                const x = pad.left + i * xStep;
+                const y = pad.top + (1 - (d.composite_ms - minVal) / (maxVal - minVal)) * plotH;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Dots
+            data.forEach((d, i) => {
+                const x = pad.left + i * xStep;
+                const y = pad.top + (1 - (d.composite_ms - minVal) / (maxVal - minVal)) * plotH;
+
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+
+                if (d.status === 'baseline') {
+                    ctx.fillStyle = '#d4a574';
+                } else if (d.status === 'kept') {
+                    ctx.fillStyle = '#7ab07a';
+                } else {
+                    ctx.fillStyle = '#cd6464';
+                }
+                ctx.fill();
+
+                // X-axis label (every other for readability)
+                if (data.length <= 10 || i % Math.ceil(data.length / 10) === 0 || i === data.length - 1) {
+                    ctx.fillStyle = '#585858';
+                    ctx.font = '10px SF Mono, Consolas, monospace';
+                    ctx.textAlign = 'center';
+                    const label = d.status === 'baseline' ? 'base' : `#${i}`;
+                    ctx.fillText(label, x, h - pad.bottom + 20);
+                }
+            });
+
+            // Legend
+            const legendY = h - 8;
+            const legends = [
+                { color: '#d4a574', label: 'baseline' },
+                { color: '#7ab07a', label: 'kept' },
+                { color: '#cd6464', label: 'discarded' },
+            ];
+            ctx.font = '11px Geist, sans-serif';
+            ctx.textAlign = 'left';
+            let lx = pad.left;
+            legends.forEach(l => {
+                ctx.beginPath();
+                ctx.arc(lx, legendY - 3, 4, 0, Math.PI * 2);
+                ctx.fillStyle = l.color;
+                ctx.fill();
+                ctx.fillStyle = '#787878';
+                ctx.fillText(l.label, lx + 8, legendY);
+                lx += ctx.measureText(l.label).width + 28;
+            });
+        }
+
+        function renderTable(data) {
+            const container = document.getElementById('results-table');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="empty-state">No experiments yet.</div>';
+                return;
+            }
+
+            // Reverse so newest is on top
+            const rows = [...data].reverse();
+
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Composite</th>
+                            <th>Projects</th>
+                            <th>Groups</th>
+                            <th>Git</th>
+                            <th>Logs</th>
+                            <th>Time</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(r => `
+                            <tr>
+                                <td><span class="status-badge status-${r.status}">${r.status}</span></td>
+                                <td class="mono">${parseFloat(r.composite_ms).toFixed(1)}</td>
+                                <td class="mono">${parseFloat(r.projects_p95).toFixed(1)}</td>
+                                <td class="mono">${parseFloat(r.groups_p95).toFixed(1)}</td>
+                                <td class="mono">${parseFloat(r.git_p95).toFixed(1)}</td>
+                                <td class="mono">${parseFloat(r.logs_p95).toFixed(1)}</td>
+                                <td class="mono">${r.duration_s ? parseFloat(r.duration_s).toFixed(0) + 's' : '—'}</td>
+                                <td>${escapeHtml(r.description || '')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                       .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        // Poll every 5 seconds
+        fetchResults();
+        setInterval(fetchResults, 5000);
+    </script>
+</body>
+</html>
