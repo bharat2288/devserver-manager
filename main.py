@@ -1017,12 +1017,13 @@ def _batch_resolve_statuses(projects: list[dict]) -> list[str]:
 
 
 @app.get("/api/projects")
-async def list_projects():
+def list_projects():
     """
     List all projects with their current status, grouped and ordered.
 
     Uses batch status resolution: 1 psutil.net_connections() call
     replaces 23 individual socket connects.
+    Sync def — FastAPI auto-runs in thread pool, freeing event loop.
     """
     projects = load_projects()
     statuses = _batch_resolve_statuses(projects)
@@ -1632,10 +1633,11 @@ def _get_git_status_for_project(project: dict) -> dict:
 
 
 @app.get("/api/git/status")
-async def get_git_status():
+def get_git_status():
     """Get git status for all registered projects.
     Uses ThreadPoolExecutor to query all projects in parallel
-    (each project runs 5 git subprocess calls)."""
+    (each project runs 5 git subprocess calls).
+    Sync def — FastAPI auto-runs in thread pool, freeing event loop."""
     from concurrent.futures import ThreadPoolExecutor
 
     projects = load_projects()
