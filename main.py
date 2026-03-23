@@ -959,20 +959,79 @@ async def reorder_groups(group_ids: list[str]):
 # Project CRUD
 # -----------------------------------------------------------------------------
 
+def _get_all_listening_ports() -> set[int]:
+    """Get all listening ports in a single psutil call.
+    Replaces 23 individual socket connect_ex() calls with 1 syscall."""
+    try:
+        return {
+            conn.laddr.port
+            for conn in psutil.net_connections(kind='inet')
+            if conn.status == psutil.CONN_LISTEN
+        }
+    except psutil.AccessDenied:
+        return set()
+
+
+def _batch_resolve_statuses(projects: list[dict]) -> list[str]:
+    """
+    Resolve status for all projects using minimal syscalls.
+
+    Instead of N individual socket connects + psutil.Process() calls,
+    does 1 psutil.net_connections() + N pid_exists() checks.
+    """
+    listening_ports = _get_all_listening_ports()
+
+    # Snapshot tracked processes (single lock acquisition)
+    with running_processes_lock:
+        tracked_by_project = {
+            proj_id: info["pid"]
+            for proj_id, info in running_processes.items()
+        }
+
+    # Check which tracked PIDs are alive (pid_exists is faster than Process())
+    alive_pids = {pid for pid in tracked_by_project.values() if psutil.pid_exists(pid)}
+
+    # Clean up dead entries
+    dead_project_ids = [pid for pid, p in tracked_by_project.items() if tracked_by_project[pid] not in alive_pids]
+    if dead_project_ids:
+        with running_processes_lock:
+            for proj_id in dead_project_ids:
+                if proj_id in running_processes:
+                    del running_processes[proj_id]
+                    logger.info(f"Cleaned up dead process for project {proj_id}")
+
+    # Resolve each project's status
+    statuses = []
+    for project in projects:
+        project_id = project["id"]
+        port = project["port"]
+
+        if project_id in tracked_by_project and tracked_by_project[project_id] in alive_pids:
+            statuses.append("running")
+        elif port in listening_ports:
+            statuses.append("external")
+        else:
+            statuses.append("stopped")
+
+    return statuses
+
+
 @app.get("/api/projects")
 async def list_projects():
     """
-    List all projects with their current status, grouped and ordered. Thread-safe.
+    List all projects with their current status, grouped and ordered.
 
-    Returns list of projects, each with an added 'status' field.
+    Uses batch status resolution: 1 psutil.net_connections() call
+    replaces 23 individual socket connects.
     """
     projects = load_projects()
-    result = []
-    for project in projects:
-        project_with_status = project.copy()
-        project_with_status["status"] = get_project_status(project)
+    statuses = _batch_resolve_statuses(projects)
 
-        # Include started_at if running (thread-safe access)
+    result = []
+    for project, status in zip(projects, statuses):
+        project_with_status = project.copy()
+        project_with_status["status"] = status
+
         with running_processes_lock:
             if project["id"] in running_processes:
                 project_with_status["started_at"] = running_processes[project["id"]]["started_at"]
