@@ -1633,12 +1633,14 @@ def _get_git_status_for_project(project: dict) -> dict:
 
 @app.get("/api/git/status")
 async def get_git_status():
-    """Get git status for all registered projects."""
+    """Get git status for all registered projects.
+    Uses ThreadPoolExecutor to query all projects in parallel
+    (each project runs 5 git subprocess calls)."""
+    from concurrent.futures import ThreadPoolExecutor
+
     projects = load_projects()
-    results = []
-    for project in projects:
-        status = _get_git_status_for_project(project)
-        results.append(status)
+    with ThreadPoolExecutor(max_workers=min(len(projects), 8)) as executor:
+        results = list(executor.map(_get_git_status_for_project, projects))
     return results
 
 
