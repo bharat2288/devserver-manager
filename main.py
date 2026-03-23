@@ -285,7 +285,7 @@ def is_port_in_use(port: int) -> bool:
     """Check if a port is currently in use. Handles socket errors gracefully."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(0.1)  # 100ms timeout - closed ports respond quickly
+            s.settimeout(0.02)  # 20ms timeout - localhost responds in <1ms when open
             return s.connect_ex(("127.0.0.1", port)) == 0
     except (OSError, socket.error) as e:
         # Socket creation or operation failed - assume port is not in use
@@ -1609,6 +1609,53 @@ async def open_lazygit(project_id: str):
     except Exception as e:
         logger.exception("Failed to open lazygit")
         raise HTTPException(status_code=500, detail="Failed to open lazygit")
+
+# =============================================================================
+# Performance Experiment Dashboard
+# =============================================================================
+
+PERF_DIR = Path(__file__).parent / "perf"
+
+@app.get("/perf")
+async def perf_dashboard():
+    """Serve the performance experiment dashboard."""
+    dashboard_path = PERF_DIR / "dashboard.html"
+    if not dashboard_path.exists():
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+    return HTMLResponse(dashboard_path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/perf/results")
+async def perf_results():
+    """Read perf/results.tsv and return as JSON array."""
+    results_path = PERF_DIR / "results.tsv"
+    if not results_path.exists():
+        return []
+
+    import csv
+    rows = []
+    with open(results_path, "r") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            # Convert numeric fields
+            for key in ("composite_ms", "projects_p95", "groups_p95", "git_p95", "logs_p95"):
+                if key in row and row[key]:
+                    try:
+                        row[key] = float(row[key])
+                    except ValueError:
+                        row[key] = 0.0
+            rows.append(row)
+    return rows
+
+
+@app.get("/api/perf/baseline")
+async def perf_baseline():
+    """Return baseline metrics from perf/baseline.json."""
+    baseline_path = PERF_DIR / "baseline.json"
+    if not baseline_path.exists():
+        raise HTTPException(status_code=404, detail="No baseline captured yet")
+    return json.loads(baseline_path.read_text(encoding="utf-8"))
+
 
 # =============================================================================
 # Entry Point
