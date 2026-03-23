@@ -353,13 +353,11 @@
         }
 
         .group-body {
-            max-height: 2000px;
             overflow: hidden;
-            transition: max-height 0.3s ease;
         }
 
         .group-section.collapsed .group-body {
-            max-height: 0;
+            display: none;
         }
 
         .group-projects {
@@ -1088,14 +1086,16 @@
 
                 const results = await Promise.all(promises);
                 const projectsData = results[0];
+                let groupsChanged = false;
                 if (results.length > 1) {
                     groups = results[1] || [];
                     groupsFetched = true;
+                    groupsChanged = true;
                 }
 
                 // Skip render if nothing changed
                 const newJson = JSON.stringify(projectsData);
-                if (newJson === lastProjectsJson) {
+                if (newJson === lastProjectsJson && !groupsChanged) {
                     consecutiveErrors = 0;
                     return;
                 }
@@ -1665,6 +1665,7 @@
             if (!group) return;
             try {
                 await api('PUT', `/groups/${groupId}`, { collapsed: !group.collapsed });
+                invalidateGroups();
                 await fetchData();
             } catch (err) {
                 console.error('Failed to toggle group:', err.message);
