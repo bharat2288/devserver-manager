@@ -142,13 +142,24 @@ running_processes_lock = threading.Lock()
 # Persistence Layer
 # =============================================================================
 
+# Config cache — avoids re-reading projects.json on every 3s poll
+_config_cache: dict | None = None
+_config_cache_mtime: float = 0.0
+
+
 def load_config() -> dict:
-    """Load the full config (groups + projects) from JSON file."""
+    """Load config from JSON. Cached; re-reads only when file mtime changes."""
+    global _config_cache, _config_cache_mtime
+
     if not PROJECTS_FILE.exists():
         return {"groups": [], "projects": []}
+
+    current_mtime = PROJECTS_FILE.stat().st_mtime
+    if _config_cache is not None and current_mtime == _config_cache_mtime:
+        return _config_cache
+
     with open(PROJECTS_FILE, "r") as f:
         data = json.load(f)
-    # Migration: if no groups key, add defaults and assign all projects to "active"
     if "groups" not in data:
         data["groups"] = [
             {"id": "active", "name": "Active", "auto_start": True, "collapsed": False, "position": 0},
@@ -160,13 +171,21 @@ def load_config() -> dict:
                 project["group"] = "active"
             if "position" not in project:
                 project["position"] = i
+
+    _config_cache = data
+    _config_cache_mtime = current_mtime
     return data
 
+
 def save_config(config: dict) -> None:
-    """Save the full config (groups + projects) to JSON file."""
+    """Save config to JSON. Invalidates cache."""
+    global _config_cache, _config_cache_mtime
+
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     with open(PROJECTS_FILE, "w") as f:
         json.dump(config, f, indent=2)
+    _config_cache = None
+    _config_cache_mtime = 0.0
 
 def load_projects() -> list[dict]:
     """Load projects from JSON file."""

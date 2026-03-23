@@ -1076,14 +1076,31 @@
         let consecutiveErrors = 0;
         const MAX_CONSECUTIVE_ERRORS = 3;
 
+        // Change detection — skip render if data hasn't changed
+        let lastProjectsJson = '';
+        // Groups cache — fetch once on load, re-fetch only on mutations
+        let groupsFetched = false;
+
         async function fetchData() {
             try {
-                const [projectsData, groupsData] = await Promise.all([
-                    api('GET', '/projects'),
-                    api('GET', '/groups'),
-                ]);
+                const promises = [api('GET', '/projects')];
+                if (!groupsFetched) promises.push(api('GET', '/groups'));
+
+                const results = await Promise.all(promises);
+                const projectsData = results[0];
+                if (results.length > 1) {
+                    groups = results[1] || [];
+                    groupsFetched = true;
+                }
+
+                // Skip render if nothing changed
+                const newJson = JSON.stringify(projectsData);
+                if (newJson === lastProjectsJson) {
+                    consecutiveErrors = 0;
+                    return;
+                }
+                lastProjectsJson = newJson;
                 projects = projectsData || [];
-                groups = groupsData || [];
                 consecutiveErrors = 0;
                 render();
             } catch (err) {
@@ -1094,6 +1111,8 @@
                 }
             }
         }
+
+        function invalidateGroups() { groupsFetched = false; }
 
         async function fetchLogs() {
             if (!selectedProjectId) return;
@@ -1656,6 +1675,7 @@
             event.stopPropagation();
             try {
                 await api('PUT', `/groups/${groupId}`, { auto_start: newValue });
+                invalidateGroups();
                 await fetchData();
             } catch (err) {
                 alert('Failed to update: ' + err.message);
@@ -1704,9 +1724,11 @@
                 if (newName && newName !== group.name) {
                     try {
                         await api('PUT', `/groups/${groupId}`, { name: newName });
+                        invalidateGroups();
                         await fetchData();
                     } catch (err) {
                         alert('Failed to rename: ' + err.message);
+                        invalidateGroups();
                         await fetchData();
                     }
                 } else {
@@ -1751,6 +1773,7 @@
             openDropdownId = null;
             try {
                 await api('DELETE', `/groups/${groupId}`);
+                invalidateGroups();
                 await fetchData();
             } catch (err) {
                 alert('Failed to delete: ' + err.message);
@@ -1875,6 +1898,7 @@
             try {
                 await api('POST', '/groups', { name, auto_start: false, collapsed: false });
                 closeGroupModalBtn();
+                invalidateGroups();
                 await fetchData();
             } catch (err) {
                 alert('Failed to create group: ' + err.message);
@@ -1885,9 +1909,10 @@
         // Utilities
         // =================================================================
         function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+            return String(text)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
 
         // =================================================================
