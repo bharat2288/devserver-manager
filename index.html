@@ -1366,7 +1366,10 @@
                     <button class="btn btn-xs btn-danger" onclick="stopProject('${project.id}')">Stop</button>
                 `;
             } else if (project.status === 'external') {
-                return `<button class="btn btn-xs btn-danger" onclick="forceKillPort(${project.port})" title="Kill external process">Force Kill</button>`;
+                return `
+                    <button class="btn btn-xs btn-secondary" onclick="restartProject('${project.id}')" title="Kill external process and restart under DSM">Restart</button>
+                    <button class="btn btn-xs btn-danger" onclick="stopProject('${project.id}')" title="Kill external process">Stop</button>
+                `;
             } else {
                 return `<button class="btn btn-xs btn-primary" onclick="startProject('${project.id}')">Start</button>`;
             }

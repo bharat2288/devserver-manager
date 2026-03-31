@@ -228,6 +228,7 @@ def save_running_state() -> None:
                 "pid": info["pid"],
                 "started_at": info["started_at"],
                 "log_file_path": info.get("log_file_path", ""),
+                "create_time": info.get("create_time"),
             }
             for project_id, info in running_processes.items()
         }
@@ -247,14 +248,16 @@ def restore_running_state() -> None:
     restored_count = 0
     processes_to_restore = []
 
-    # First pass: identify which processes are still alive
+    # First pass: identify which processes are still alive AND same process
     for project_id, info in saved_state.items():
         pid = info.get("pid")
-        if pid and is_process_running(pid):
+        saved_create_time = info.get("create_time")
+        if pid and _is_same_process(pid, saved_create_time):
             processes_to_restore.append((project_id, info))
             logger.info(f"Restored running process for project {project_id} (PID: {pid})")
         else:
-            logger.info(f"Discarded stale process entry for project {project_id} (PID: {pid})")
+            reason = "dead" if not psutil.pid_exists(pid) else "PID reused by another process"
+            logger.info(f"Discarded stale entry for project {project_id} (PID: {pid}, reason: {reason})")
 
     # Second pass: restore processes and start log streaming threads
     for project_id, info in processes_to_restore:
@@ -281,6 +284,7 @@ def restore_running_state() -> None:
                 "log_thread": log_thread,
                 "log_file": None,  # File was opened by the previous run
                 "log_file_path": log_file_path,
+                "create_time": info.get("create_time"),
             }
         restored_count += 1
 
@@ -429,8 +433,30 @@ def is_process_running(pid: int) -> bool:
     try:
         process = psutil.Process(pid)
         return process.is_running() and process.status() != psutil.STATUS_ZOMBIE
-    except psutil.NoSuchProcess:
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
         return False
+
+def _get_process_create_time(pid: int) -> Optional[float]:
+    """Get process creation timestamp. Returns None if process not accessible."""
+    try:
+        return psutil.Process(pid).create_time()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return None
+
+def _is_same_process(pid: int, expected_create_time: Optional[float]) -> bool:
+    """Check if PID still refers to the same process (not reused by OS).
+
+    Windows aggressively reuses PIDs. A stale PID can point to svchost.exe
+    or another unrelated process. Comparing create_time catches this.
+    """
+    if expected_create_time is None:
+        # Legacy entry without create_time — fall back to pid_exists
+        return psutil.pid_exists(pid)
+    actual_create_time = _get_process_create_time(pid)
+    if actual_create_time is None:
+        return False
+    # Allow 2s tolerance for clock skew between save and actual creation
+    return abs(actual_create_time - expected_create_time) < 2.0
 
 def get_project_status(project: dict) -> str:
     """
@@ -572,10 +598,14 @@ def start_project_process(project: dict) -> dict:
         # shell=True needed for Windows commands like npm, also handles command parsing
         # CREATE_NEW_PROCESS_GROUP allows us to terminate the process tree
 
-        # Build environment with fnm node path for npm commands
+        # Build environment: ensure subprocess resolves python/node to the same
+        # versions DSM uses. When DSM starts via VBS on boot, the system PATH may
+        # put Python 3.13 before 3.11, causing "No module named uvicorn" failures.
         env = os.environ.copy()
+        dsm_python_dir = str(Path(sys.executable).parent)
+        env["PATH"] = dsm_python_dir + os.pathsep + env.get("PATH", "")
         if FNM_NODE_PATH and FNM_NODE_PATH.exists():
-            env["PATH"] = str(FNM_NODE_PATH) + os.pathsep + env.get("PATH", "")
+            env["PATH"] = str(FNM_NODE_PATH) + os.pathsep + env["PATH"]
 
         logger.info(f"Starting project {project_name}: {project['start_command']}")
 
@@ -648,6 +678,7 @@ def start_project_process(project: dict) -> dict:
                 "log_thread": log_thread,
                 "log_file": log_file,  # Keep handle to close on stop
                 "log_file_path": str(log_file_path),
+                "create_time": _get_process_create_time(process.pid),
             }
 
         # Persist running state to survive manager restarts
@@ -688,7 +719,7 @@ def stop_project_process(project_id: str) -> None:
         for child in children:
             try:
                 child.terminate()
-            except psutil.NoSuchProcess:
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
 
         parent.terminate()
@@ -701,11 +732,14 @@ def stop_project_process(project_id: str) -> None:
             try:
                 p.kill()
                 logger.warning(f"Force killed process {p.pid}")
-            except psutil.NoSuchProcess:
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
 
     except psutil.NoSuchProcess:
         logger.info(f"Process {pid} already terminated")
+    except psutil.AccessDenied:
+        # PID was reused by a system process we can't terminate (e.g., svchost.exe)
+        logger.warning(f"Access denied terminating PID {pid} — likely a reused PID (not our process)")
 
     # Clean up the Popen object to release resources
     if process_obj is not None:
@@ -1003,21 +1037,26 @@ def _batch_resolve_statuses(projects: list[dict]) -> list[str]:
     # Snapshot tracked processes (single lock acquisition)
     with running_processes_lock:
         tracked_by_project = {
-            proj_id: info["pid"]
+            proj_id: (info["pid"], info.get("create_time"))
             for proj_id, info in running_processes.items()
         }
 
-    # Check which tracked PIDs are alive (pid_exists is faster than Process())
-    alive_pids = {pid for pid in tracked_by_project.values() if psutil.pid_exists(pid)}
+    # Check which tracked PIDs are alive AND still the same process
+    # _is_same_process catches Windows PID reuse (e.g., stale PID now belongs to svchost.exe)
+    alive_project_pids = {}
+    for proj_id, (pid, create_time) in tracked_by_project.items():
+        if _is_same_process(pid, create_time):
+            alive_project_pids[proj_id] = pid
 
-    # Clean up dead entries
-    dead_project_ids = [pid for pid, p in tracked_by_project.items() if tracked_by_project[pid] not in alive_pids]
+    # Clean up dead/stale entries and persist to running.json
+    dead_project_ids = [proj_id for proj_id in tracked_by_project if proj_id not in alive_project_pids]
     if dead_project_ids:
         with running_processes_lock:
             for proj_id in dead_project_ids:
                 if proj_id in running_processes:
                     del running_processes[proj_id]
                     logger.info(f"Cleaned up dead process for project {proj_id}")
+        save_running_state()  # Persist cleanup so restarts don't re-load stale entries
 
     # Resolve each project's status
     statuses = []
@@ -1025,7 +1064,7 @@ def _batch_resolve_statuses(projects: list[dict]) -> list[str]:
         project_id = project["id"]
         port = project["port"]
 
-        if project_id in tracked_by_project and tracked_by_project[project_id] in alive_pids:
+        if project_id in alive_project_pids:
             statuses.append("running")
         elif port in listening_ports:
             statuses.append("external")
@@ -1228,17 +1267,42 @@ async def start_project(project_id: str):
 
 @app.post("/api/projects/{project_id}/stop")
 async def stop_project(project_id: str):
-    """Stop the server for a project."""
+    """Stop the server for a project.
+
+    If we're tracking it, uses our tracked PID. If it's external (port busy
+    but not tracked), kills the port occupier directly.
+    """
     project = get_project_by_id(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    stop_project_process(project_id)
+    with running_processes_lock:
+        is_tracked = project_id in running_processes
+
+    if is_tracked:
+        stop_project_process(project_id)
+    elif is_port_in_use(project["port"]):
+        # External process on our port — kill it
+        logger.info(f"Stopping external process on port {project['port']} for project {project_id}")
+        ext_process = get_process_using_port(project["port"])
+        if ext_process:
+            kill_process_tree(ext_process.pid)
+        else:
+            raise HTTPException(status_code=500, detail=f"Could not identify process on port {project['port']}")
+    else:
+        raise HTTPException(status_code=400, detail="Project is not running")
+
     return {"status": "stopped"}
 
 @app.post("/api/projects/{project_id}/restart")
 async def restart_project(project_id: str):
-    """Restart the server for a project (stop then start)."""
+    """Restart the server for a project (stop then start).
+
+    Handles three cases:
+    1. Running (tracked by us) — stop then start
+    2. External (port busy, not tracked) — kill port occupier then start
+    3. Stopped — just start
+    """
     project = get_project_by_id(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -1249,6 +1313,13 @@ async def restart_project(project_id: str):
 
     if is_running:
         stop_project_process(project_id)
+    elif is_port_in_use(project["port"]):
+        # Port occupied by external process — kill it so we can restart cleanly
+        logger.info(f"Port {project['port']} occupied externally during restart, killing occupier")
+        ext_process = get_process_using_port(project["port"])
+        if ext_process:
+            kill_process_tree(ext_process.pid)
+        await asyncio.sleep(0.5)  # Brief wait for OS to release port
 
     # Start fresh
     result = start_project_process(project)
