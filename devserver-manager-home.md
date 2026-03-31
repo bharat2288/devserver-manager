@@ -7,7 +7,7 @@ cssclasses:
 ---
 # Dev Server Manager
 *[[dev-hub|Hub]] · [[README|GitHub]]*
-<span class="hub-status">v2.2 — Performance optimized (53% faster), autoresearch experiment framework at /perf</span>
+<span class="hub-status">v2.3 — PID reuse fix, external process handling for stop/restart</span>
 
 Dashboard at `http://localhost:9000` managing all dev servers. Port registry, health checks, lifecycle management.
 
