@@ -473,16 +473,20 @@
         }
 
         .dropdown-menu {
-            position: absolute;
-            right: 0;
-            top: 100%;
-            margin-top: 4px;
+            position: fixed;
+            right: auto;
+            top: 0;
+            left: 0;
+            margin-top: 0;
             background: var(--bg-elevated);
             border: 1px solid var(--border-default);
             border-radius: var(--radius-lg);
             padding: 4px;
             min-width: 160px;
-            z-index: 100;
+            max-width: calc(100vw - 16px);
+            max-height: calc(100vh - 16px);
+            overflow-y: auto;
+            z-index: 1000;
             display: none;
             box-shadow: var(--shadow-lg);
         }
@@ -1214,6 +1218,7 @@
             }).join('');
 
             updateLogTitle();
+            positionOpenDropdown();
         }
 
         function renderGitHealth() {
@@ -1793,12 +1798,44 @@
             render();
         }
 
+        function positionOpenDropdown() {
+            if (!openDropdownId) return;
+
+            const menu = document.getElementById(`dropdown-${openDropdownId}`);
+            if (!menu) return;
+
+            const dropdown = menu.closest('.dropdown');
+            const trigger = dropdown ? dropdown.querySelector('.btn-icon') : null;
+            if (!trigger) return;
+
+            const triggerRect = trigger.getBoundingClientRect();
+            const gap = 8;
+            const offset = 4;
+            const menuWidth = menu.offsetWidth;
+            const menuHeight = menu.offsetHeight;
+
+            const maxLeft = window.innerWidth - menuWidth - gap;
+            const left = Math.max(gap, Math.min(triggerRect.right - menuWidth, maxLeft));
+
+            let top = triggerRect.bottom + offset;
+            if (top + menuHeight > window.innerHeight - gap) {
+                top = triggerRect.top - menuHeight - offset;
+            }
+            top = Math.max(gap, top);
+
+            menu.style.left = `${left}px`;
+            menu.style.top = `${top}px`;
+        }
+
         document.addEventListener('click', () => {
             if (openDropdownId) {
                 openDropdownId = null;
                 render();
             }
         });
+
+        window.addEventListener('resize', positionOpenDropdown);
+        window.addEventListener('scroll', positionOpenDropdown, true);
 
         // =================================================================
         // Project Modal

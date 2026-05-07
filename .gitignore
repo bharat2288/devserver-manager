@@ -48,9 +48,11 @@ logs/
 # Runtime config (contains user-specific project paths)
 config/projects.json
 config/running.json
+config/*.bak-*
 
 # Personal dev notes (see specs/ for project documentation)
 specs/
+*-home.md
 .claude/
 
 # Windows artifacts
